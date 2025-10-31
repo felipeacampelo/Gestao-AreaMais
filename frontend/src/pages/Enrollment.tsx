@@ -26,6 +26,7 @@ export default function Enrollment() {
     cpf: '',
     rg: '',
     cep: '',
+    tamanho_camiseta: '',
     membro_batista_capital: '',
     igreja: '',
     lider_pg: '',
@@ -51,13 +52,9 @@ export default function Enrollment() {
       );
       
       if (activeEnrollment) {
-        // Redirect to payment page if pending, or show completion if paid
-        if (activeEnrollment.status === 'PENDING_PAYMENT') {
-          setError('Você já possui uma inscrição em andamento. Redirecionando para o pagamento...');
-          setTimeout(() => navigate(`/payment/${activeEnrollment.id}`), 2000);
-        } else if (activeEnrollment.status === 'PAID') {
-          setCompletedEnrollment(activeEnrollment);
-        }
+        // Redirect to My Enrollments page
+        setError('Você já possui uma inscrição. Redirecionando para suas inscrições...');
+        setTimeout(() => navigate('/minhas-inscricoes'), 2000);
       }
     } catch (err) {
       console.error('Error checking existing enrollment:', err);
@@ -414,7 +411,28 @@ export default function Enrollment() {
                 placeholder="00000-000"
                 maxLength={9}
               />
-            </div>  
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Tamanho da Camiseta *
+              </label>
+              <select
+                required
+                value={formData.tamanho_camiseta}
+                onChange={(e) => setFormData({ ...formData, tamanho_camiseta: e.target.value })}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple focus:border-transparent text-gray-900 bg-white"
+              >
+                <option value="">Selecione o tamanho...</option>
+                <option value="PP">PP</option>
+                <option value="P">P</option>
+                <option value="M">M</option>
+                <option value="G">G</option>
+                <option value="GG">GG</option>
+                <option value="XG">XG</option>
+              </select>
+            </div>
+            
             <div className="border-t pt-6 mt-6">
               <h3 className="text-lg font-semibold mb-4" style={{ color: 'rgb(165, 44, 240)' }}>
               </h3>

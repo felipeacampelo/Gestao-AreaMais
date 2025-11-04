@@ -37,9 +37,17 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
     
     def create(self, request, *args, **kwargs):
         """Create new enrollment."""
+        from .email_service import send_enrollment_confirmation_email
+        
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         enrollment = serializer.save()
+        
+        # Send confirmation email
+        try:
+            send_enrollment_confirmation_email(enrollment)
+        except Exception as e:
+            print(f"Erro ao enviar email de confirmação: {e}")
         
         # Return full enrollment data
         response_serializer = EnrollmentSerializer(enrollment)
@@ -47,6 +55,29 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
             response_serializer.data,
             status=status.HTTP_201_CREATED
         )
+    
+    def update(self, request, *args, **kwargs):
+        """Update enrollment form_data."""
+        enrollment = self.get_object()
+        
+        # Only allow updating if no payments have been made
+        if enrollment.payments.filter(status__in=['CONFIRMED', 'RECEIVED']).exists():
+            return Response(
+                {'detail': 'Não é possível editar inscrição com pagamentos confirmados'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        
+        # Update form_data
+        if 'form_data' in request.data:
+            enrollment.form_data.update(request.data['form_data'])
+            enrollment.save()
+        
+        serializer = self.get_serializer(enrollment)
+        return Response(serializer.data)
+    
+    def partial_update(self, request, *args, **kwargs):
+        """Partial update enrollment form_data."""
+        return self.update(request, *args, **kwargs)
     
     @action(detail=True, methods=['get'])
     def payments(self, request, pk=None):

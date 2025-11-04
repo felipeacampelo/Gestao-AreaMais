@@ -38,15 +38,32 @@ class CurrentUserView(generics.RetrieveUpdateAPIView):
 @permission_classes([permissions.AllowAny])
 def register_view(request):
     """Register a new user."""
+    from django.db import IntegrityError
+    
     serializer = RegisterSerializer(data=request.data)
     if serializer.is_valid():
-        user = serializer.save()
-        token, created = Token.objects.get_or_create(user=user)
-        
-        return Response({
-            'user': UserSerializer(user).data,
-            'token': token.key
-        }, status=status.HTTP_201_CREATED)
+        try:
+            user = serializer.save()
+            token, created = Token.objects.get_or_create(user=user)
+            
+            return Response({
+                'user': UserSerializer(user).data,
+                'token': token.key
+            }, status=status.HTTP_201_CREATED)
+        except IntegrityError as e:
+            error_msg = str(e)
+            if 'cpf' in error_msg.lower():
+                return Response({
+                    'cpf': ['Este CPF já está cadastrado.']
+                }, status=status.HTTP_400_BAD_REQUEST)
+            elif 'email' in error_msg.lower():
+                return Response({
+                    'email': ['Este email já está cadastrado.']
+                }, status=status.HTTP_400_BAD_REQUEST)
+            else:
+                return Response({
+                    'detail': 'Erro ao criar usuário. Verifique se os dados não estão duplicados.'
+                }, status=status.HTTP_400_BAD_REQUEST)
     
     return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 

@@ -6,6 +6,7 @@ import Home from './pages/Home'
 import Enrollment from './pages/Enrollment'
 import Payment from './pages/Payment'
 import MyEnrollments from './pages/MyEnrollments'
+import EditEnrollment from './pages/EditEnrollment'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import ForgotPassword from './pages/ForgotPassword'
@@ -37,6 +38,14 @@ function App() {
             element={
               <PrivateRoute>
                 <MyEnrollments />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path="/enrollment/edit/:id" 
+            element={
+              <PrivateRoute>
+                <EditEnrollment />
               </PrivateRoute>
             } 
           />

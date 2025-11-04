@@ -95,31 +95,42 @@ class RegisterSerializer(serializers.ModelSerializer):
         fields = ['email', 'password', 'password2', 'first_name', 'last_name', 'phone', 'cpf']
     
     def validate(self, attrs):
-        """Validate passwords match."""
+        """Validate passwords match and check for duplicate CPF."""
         if attrs['password'] != attrs['password2']:
             raise serializers.ValidationError({"password": "As senhas não coincidem."})
+        
+        # Check if CPF already exists
+        cpf = attrs.get('cpf')
+        if cpf:
+            if UserProfile.objects.filter(cpf=cpf).exists():
+                raise serializers.ValidationError({"cpf": "Este CPF já está cadastrado."})
+        
         return attrs
     
     def create(self, validated_data):
         """Create user with profile."""
+        from django.db import transaction
+        
         validated_data.pop('password2')
         phone = validated_data.pop('phone', None)
         cpf = validated_data.pop('cpf', None)
         
-        user = User.objects.create_user(
-            email=validated_data['email'],
-            password=validated_data['password'],
-            first_name=validated_data.get('first_name', ''),
-            last_name=validated_data.get('last_name', '')
-        )
-        
-        # Create profile if phone or cpf provided
-        if phone or cpf:
-            UserProfile.objects.create(
-                user=user,
-                phone=phone or '',
-                cpf=cpf or ''
+        # Use atomic transaction to ensure both user and profile are created or neither
+        with transaction.atomic():
+            user = User.objects.create_user(
+                email=validated_data['email'],
+                password=validated_data['password'],
+                first_name=validated_data.get('first_name', ''),
+                last_name=validated_data.get('last_name', '')
             )
+            
+            # Create profile if phone or cpf provided
+            if phone or cpf:
+                UserProfile.objects.create(
+                    user=user,
+                    phone=phone or '',
+                    cpf=cpf or ''
+                )
         
         return user
 

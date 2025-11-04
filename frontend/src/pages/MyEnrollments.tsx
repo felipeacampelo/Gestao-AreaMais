@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Calendar, CheckCircle, Clock, XCircle, CreditCard, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, CheckCircle, Clock, XCircle, CreditCard, AlertCircle, Edit } from 'lucide-react';
 import { getEnrollments, type Enrollment } from '../services/api';
 
 export default function MyEnrollments() {
@@ -107,9 +107,9 @@ export default function MyEnrollments() {
           Voltar
         </button>
 
-        <div className="bg-white rounded-xl shadow-lg p-8">
-          <h1 className="text-3xl font-bold mb-2">Minhas Inscrições</h1>
-          <p className="text-gray-600 mb-8">
+        <div className="bg-white rounded-xl shadow-lg p-4 sm:p-8">
+          <h1 className="text-2xl sm:text-3xl font-bold mb-2">Minhas Inscrições</h1>
+          <p className="text-sm sm:text-base text-gray-600 mb-6 sm:mb-8">
             Visualize todas as suas inscrições e seus status
           </p>
 
@@ -143,21 +143,21 @@ export default function MyEnrollments() {
               {enrollments.map((enrollment) => (
                 <div
                   key={enrollment.id}
-                  className="border rounded-lg p-6 hover:shadow-md transition-shadow"
+                  className="border rounded-lg p-4 sm:p-6 hover:shadow-md transition-shadow"
                   style={{
                     borderColor: enrollment.status === 'PAID' ? 'rgb(210, 243, 67)' : '#e5e7eb'
                   }}
                 >
-                  <div className="flex items-start justify-between">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                     <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
+                      <div className="flex items-center gap-2 sm:gap-3 mb-3">
                         {getStatusIcon(enrollment.status)}
-                        <h3 className="text-xl font-semibold">
+                        <h3 className="text-lg sm:text-xl font-semibold">
                           {enrollment.product_name || 'Produto'}
                         </h3>
                       </div>
                       
-                      <div className="grid md:grid-cols-2 gap-4 mt-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 mt-4">
                         <div>
                           <span className="text-sm text-gray-600">Lote:</span>
                           <p className="font-medium">{enrollment.batch_name || 'N/A'}</p>
@@ -219,27 +219,20 @@ export default function MyEnrollments() {
                           return (
                             <div 
                               key={payment.id} 
-                              className="flex items-center justify-between p-4 rounded-lg border"
+                              className="flex flex-col sm:flex-row sm:items-center sm:justify-between p-3 sm:p-4 rounded-lg border gap-3"
                               style={{
-                                backgroundColor: payment.status === 'RECEIVED' || payment.status === 'CONFIRMED' 
-                                  ? 'rgba(34, 197, 94, 0.05)' 
-                                  : isOverdue 
-                                  ? 'rgba(239, 68, 68, 0.05)'
-                                  : isDueSoon
-                                  ? 'rgba(234, 179, 8, 0.05)'
-                                  : 'rgba(243, 244, 246, 1)',
-                                borderColor: payment.status === 'RECEIVED' || payment.status === 'CONFIRMED'
-                                  ? 'rgba(34, 197, 94, 0.3)'
+                                backgroundColor: payment.status === 'RECEIVED' || payment.status === 'CONFIRMED'
+                                  ? 'rgba(34, 197, 94, 0.1)'
                                   : isOverdue
-                                  ? 'rgba(239, 68, 68, 0.3)'
+                                  ? 'rgba(239, 68, 68, 0.1)'
                                   : isDueSoon
                                   ? 'rgba(234, 179, 8, 0.3)'
                                   : 'rgba(229, 231, 235, 1)'
                               }}
                             >
                               <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-1">
-                                  <span className="font-semibold">
+                                <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-2">
+                                  <span className="font-semibold text-sm sm:text-base">
                                     Parcela {index + 1}/{enrollment.installments}
                                   </span>
                                   <span
@@ -284,13 +277,13 @@ export default function MyEnrollments() {
                                 </div>
                               </div>
                               
-                              <div className="flex items-center gap-3">
-                                <span className="font-bold text-lg">R$ {payment.amount}</span>
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3">
+                                <span className="font-bold text-base sm:text-lg">R$ {payment.amount}</span>
                                 
                                 {payment.status !== 'RECEIVED' && payment.status !== 'CONFIRMED' && (
                                   <button
                                     onClick={() => navigate(`/payment/${enrollment.id}?paymentId=${payment.id}`)}
-                                    className="px-4 py-2 rounded-lg font-medium transition-colors"
+                                    className="px-4 py-2 rounded-lg font-medium transition-colors text-sm sm:text-base whitespace-nowrap"
                                     style={{
                                       backgroundColor: 'rgb(165, 44, 240)',
                                       color: 'white'
@@ -312,12 +305,33 @@ export default function MyEnrollments() {
 
                   {enrollment.status === 'PENDING_PAYMENT' && enrollment.payment_method !== 'PIX_INSTALLMENT' && (
                     <div className="mt-4 pt-4 border-t">
-                      <button
-                        onClick={() => navigate(`/payment/${enrollment.id}`)}
-                        className="btn-primary"
-                      >
-                        Continuar Pagamento
-                      </button>
+                      <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+                        <button
+                          onClick={() => navigate(`/payment/${enrollment.id}`)}
+                          className="btn-primary flex-1"
+                        >
+                          Continuar Pagamento
+                        </button>
+                        
+                        {/* Botão Editar - só aparece se não há nenhum pagamento feito */}
+                        {(!enrollment.payments || enrollment.payments.length === 0 || 
+                          enrollment.payments.every((p: any) => p.status === 'PENDING')) && (
+                          <button
+                            onClick={() => navigate(`/enrollment/edit/${enrollment.id}`)}
+                            className="px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                            style={{
+                              backgroundColor: 'rgb(165, 44, 240)',
+                              color: 'white'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgb(145, 24, 220)'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgb(165, 44, 240)'}
+                            title="Editar dados da inscrição"
+                          >
+                            <Edit className="w-4 h-4" />
+                            <span className="text-sm sm:text-base">Editar Inscrição</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )}
 

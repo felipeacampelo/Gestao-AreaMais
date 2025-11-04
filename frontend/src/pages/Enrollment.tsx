@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, User, Phone, FileText, Calendar, CreditCard, Check } from 'lucide-react';
-import { getProducts, getProduct, createEnrollment, getEnrollments, type Product, type Enrollment } from '../services/api'; // getEnrollments used in handleSubmit
+import { ArrowLeft, User, Phone, FileText, Calendar, CreditCard, Check, Ticket, X } from 'lucide-react';
+import { getProducts, getProduct, createEnrollment, getEnrollments, validateCoupon, type Product, type Enrollment } from '../services/api'; // getEnrollments used in handleSubmit
 import ProgressSteps from '../components/ProgressSteps';
 
 export default function Enrollment() {
@@ -11,6 +11,13 @@ export default function Enrollment() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [completedEnrollment, setCompletedEnrollment] = useState<Enrollment | null>(null);
+  
+  // Coupon states
+  const [couponCode, setCouponCode] = useState('');
+  const [couponApplied, setCouponApplied] = useState(false);
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponError, setCouponError] = useState('');
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
 
   const steps = [
     { number: 1, title: 'Dados Pessoais', description: 'Informações básicas' },
@@ -93,6 +100,48 @@ export default function Enrollment() {
     }
   };
 
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError('Digite um código de cupom');
+      return;
+    }
+
+    if (!selectedProduct || !selectedProduct.active_batch) {
+      setCouponError('Selecione um produto primeiro');
+      return;
+    }
+
+    setValidatingCoupon(true);
+    setCouponError('');
+
+    try {
+      const baseAmount = parseFloat(String(selectedProduct.active_batch.pix_price || selectedProduct.active_batch.price));
+      
+      const response = await validateCoupon({
+        code: couponCode.trim().toUpperCase(),
+        product_id: selectedProduct.id,
+        amount: baseAmount
+      });
+
+      setCouponApplied(true);
+      setCouponDiscount(response.data.discount_amount);
+      setCouponError('');
+    } catch (err: any) {
+      setCouponError(err.response?.data?.error || 'Cupom inválido');
+      setCouponApplied(false);
+      setCouponDiscount(0);
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponCode('');
+    setCouponApplied(false);
+    setCouponDiscount(0);
+    setCouponError('');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -146,6 +195,7 @@ export default function Enrollment() {
         product_id: selectedProduct.id,
         batch_id: selectedProduct.active_batch.id,
         form_data: formData,
+        coupon_code: couponApplied ? couponCode : undefined,
       });
 
       // Redirecionar para página de pagamento
@@ -245,12 +295,12 @@ export default function Enrollment() {
         {/* Header */}
         <button
           onClick={() => navigate('/')}
-          className="flex items-center mb-8 font-medium"
+          className="flex items-center mb-8 font-medium transition-colors"
           style={{ color: 'rgb(165, 44, 240)' }}
-          onMouseEnter={(e) => e.currentTarget.style.color = 'rgba(250, 249, 251, 1)'}
-          onMouseLeave={(e) => e.currentTarget.style.color = 'rgba(238, 237, 239, 1)'}
+          onMouseEnter={(e) => e.currentTarget.style.color = 'rgb(145, 24, 220)'}
+          onMouseLeave={(e) => e.currentTarget.style.color = 'rgb(165, 44, 240)'}
         >
-          <ArrowLeft className="w-5 h-5 mr-2" style={{ color: 'rgba(238, 237, 239, 1)' }} />
+          <ArrowLeft className="w-5 h-5 mr-2" style={{ color: 'inherit' }} />
           Voltar
         </button>
 
@@ -495,6 +545,64 @@ export default function Enrollment() {
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple focus:border-transparent text-gray-900 bg-white"
                 placeholder="Restrições alimentares, necessidades especiais, etc..."
               />
+            </div>
+
+            {/* Cupom de Desconto */}
+            <div className="border-t pt-6">
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                <Ticket className="w-4 h-4 inline mr-2" />
+                Tem um cupom de desconto?
+              </label>
+              
+              {!couponApplied ? (
+                <div className="flex gap-3">
+                  <input
+                    type="text"
+                    value={couponCode}
+                    onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                    placeholder="Digite o código do cupom"
+                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent text-gray-900 bg-white uppercase"
+                    disabled={validatingCoupon}
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyCoupon}
+                    disabled={validatingCoupon || !couponCode.trim()}
+                    className="px-6 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {validatingCoupon ? 'Validando...' : 'Aplicar'}
+                  </button>
+                </div>
+              ) : (
+                <div className="bg-green-50 border-2 border-green-500 rounded-lg p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      <Check className="w-5 h-5 text-green-600" />
+                      <div>
+                        <p className="font-medium text-green-900">Cupom aplicado!</p>
+                        <p className="text-sm text-green-700">
+                          Código: <span className="font-mono font-bold">{couponCode}</span>
+                        </p>
+                        <p className="text-sm text-green-700">
+                          Desconto: <span className="font-bold">R$ {couponDiscount.toFixed(2)}</span>
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveCoupon}
+                      className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
+                      title="Remover cupom"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                </div>
+              )}
+              
+              {couponError && (
+                <p className="mt-2 text-sm text-red-600">{couponError}</p>
+              )}
             </div>
 
             <button

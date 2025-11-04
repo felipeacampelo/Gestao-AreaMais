@@ -5,6 +5,8 @@ from decimal import Decimal
 from django.db import models
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
+from django.core.validators import MinValueValidator
+from django.utils import timezone
 
 
 class Enrollment(models.Model):
@@ -80,11 +82,29 @@ class Enrollment(models.Model):
         help_text=_('Valor original do lote')
     )
     
+    coupon = models.ForeignKey(
+        'Coupon',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='enrollments',
+        verbose_name=_('Cupom de Desconto')
+    )
+    
+    coupon_discount = models.DecimalField(
+        _('Desconto do Cupom'),
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        help_text=_('Valor do desconto aplicado pelo cupom')
+    )
+    
     discount_amount = models.DecimalField(
         _('Valor do Desconto'),
         max_digits=10,
         decimal_places=2,
-        default=0
+        default=0,
+        help_text=_('Desconto total (PIX + Cupom)')
     )
     
     final_amount = models.DecimalField(
@@ -129,16 +149,26 @@ class Enrollment(models.Model):
         return self.status == 'PAID'
     
     def calculate_amounts(self):
-        """Calculate total, discount and final amounts based on batch and payment method."""
+        """Calculate total, discount and final amounts based on batch, payment method and coupon."""
         self.total_amount = self.batch.price
         
-        # Apply PIX discount if payment is PIX à vista
-        if self.payment_method == 'PIX_CASH':
-            discount_percentage = self.batch.pix_discount_percentage
-            self.discount_amount = self.total_amount * (discount_percentage / 100)
+        # If coupon exists, apply only coupon discount (same price for all payment methods)
+        if self.coupon:
+            coupon_discount_value = self.coupon.calculate_discount(self.total_amount)
+            self.coupon_discount = Decimal(str(coupon_discount_value))
+            self.discount_amount = self.coupon_discount
         else:
-            self.discount_amount = Decimal('0.00')
+            # No coupon: apply PIX discount if payment is PIX à vista
+            self.coupon_discount = Decimal('0.00')
+            
+            if self.payment_method == 'PIX_CASH':
+                discount_percentage = self.batch.pix_discount_percentage
+                pix_discount = self.total_amount * (discount_percentage / 100)
+                self.discount_amount = pix_discount
+            else:
+                self.discount_amount = Decimal('0.00')
         
+        # Final amount
         self.final_amount = self.total_amount - self.discount_amount
     
     def save(self, *args, **kwargs):
@@ -146,3 +176,158 @@ class Enrollment(models.Model):
         if self.batch and self.total_amount is None:
             self.calculate_amounts()
         super().save(*args, **kwargs)
+
+
+class Coupon(models.Model):
+    """
+    Discount coupon model.
+    """
+    DISCOUNT_TYPE_CHOICES = [
+        ('PERCENTAGE', 'Porcentagem'),
+        ('FIXED', 'Valor Fixo'),
+    ]
+    
+    code = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name='Código do Cupom',
+        help_text='Código único do cupom (ex: PROMO2024)'
+    )
+    
+    discount_type = models.CharField(
+        max_length=20,
+        choices=DISCOUNT_TYPE_CHOICES,
+        default='PERCENTAGE',
+        verbose_name='Tipo de Desconto'
+    )
+    
+    discount_value = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        verbose_name='Valor do Desconto',
+        help_text='Porcentagem (0-100) ou valor fixo em R$'
+    )
+    
+    max_discount = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(0)],
+        verbose_name='Desconto Máximo',
+        help_text='Limite máximo de desconto (apenas para porcentagem)'
+    )
+    
+    min_purchase = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0)],
+        verbose_name='Compra Mínima',
+        help_text='Valor mínimo para usar o cupom'
+    )
+    
+    max_uses = models.IntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+        verbose_name='Usos Máximos',
+        help_text='Número máximo de vezes que o cupom pode ser usado (deixe vazio para ilimitado)'
+    )
+    
+    uses_count = models.IntegerField(
+        default=0,
+        verbose_name='Contador de Usos'
+    )
+    
+    valid_from = models.DateTimeField(
+        verbose_name='Válido De',
+        help_text='Data/hora de início da validade'
+    )
+    
+    valid_until = models.DateTimeField(
+        verbose_name='Válido Até',
+        help_text='Data/hora de fim da validade'
+    )
+    
+    active = models.BooleanField(
+        default=True,
+        verbose_name='Ativo'
+    )
+    
+    description = models.TextField(
+        blank=True,
+        verbose_name='Descrição',
+        help_text='Descrição interna do cupom'
+    )
+    
+    # Restrições
+    products = models.ManyToManyField(
+        'products.Product',
+        blank=True,
+        verbose_name='Produtos',
+        help_text='Deixe vazio para aplicar a todos os produtos'
+    )
+    
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Cupom de Desconto'
+        verbose_name_plural = 'Cupons de Desconto'
+        ordering = ['-created_at']
+    
+    def __str__(self):
+        return f"{self.code} - {self.get_discount_display()}"
+    
+    def get_discount_display(self):
+        """Get formatted discount display."""
+        if self.discount_type == 'PERCENTAGE':
+            return f"{self.discount_value}%"
+        return f"R$ {self.discount_value}"
+    
+    def is_valid(self):
+        """Check if coupon is currently valid."""
+        now = timezone.now()
+        
+        if not self.active:
+            return False, "Cupom inativo"
+        
+        if now < self.valid_from:
+            return False, "Cupom ainda não está válido"
+        
+        if now > self.valid_until:
+            return False, "Cupom expirado"
+        
+        if self.max_uses and self.uses_count >= self.max_uses:
+            return False, "Cupom esgotado"
+        
+        return True, "Cupom válido"
+    
+    def can_apply_to_product(self, product):
+        """Check if coupon can be applied to a specific product."""
+        if not self.products.exists():
+            return True
+        return self.products.filter(id=product.id).exists()
+    
+    def calculate_discount(self, original_amount):
+        """Calculate discount amount for given original amount."""
+        from decimal import Decimal
+        
+        # Convert to Decimal for consistent calculations
+        amount = Decimal(str(original_amount))
+        
+        if self.discount_type == 'PERCENTAGE':
+            discount = amount * (self.discount_value / 100)
+            if self.max_discount:
+                discount = min(discount, self.max_discount)
+        else:
+            discount = min(self.discount_value, amount)
+        
+        return float(discount)
+    
+    def increment_uses(self):
+        """Increment usage counter."""
+        self.uses_count += 1
+        self.save(update_fields=['uses_count'])

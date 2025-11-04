@@ -72,6 +72,7 @@ class EnrollmentCreateSerializer(serializers.Serializer):
     product_id = serializers.IntegerField()
     batch_id = serializers.IntegerField()
     form_data = serializers.JSONField(required=False, default=dict)
+    coupon_code = serializers.CharField(required=False, allow_blank=True)
     
     def validate(self, data):
         """Validate product and batch."""
@@ -168,28 +169,73 @@ class EnrollmentCreateSerializer(serializers.Serializer):
             first_name = nome_parts[0] if nome_parts else 'Usuário'
             last_name = nome_parts[1] if len(nome_parts) > 1 else ''
             
-            user, _ = User.objects.get_or_create(
-                email=email,
-                defaults={
-                    'first_name': first_name,
-                    'last_name': last_name
-                }
-            )
+            try:
+                user, _ = User.objects.get_or_create(
+                    email=email,
+                    defaults={
+                        'first_name': first_name,
+                        'last_name': last_name
+                    }
+                )
+            except Exception as e:
+                # If user exists but with different data, just get it
+                try:
+                    user = User.objects.get(email=email)
+                except User.DoesNotExist:
+                    raise serializers.ValidationError({
+                        'form_data': f'Erro ao criar usuário: {str(e)}'
+                    })
         
         product = validated_data.pop('product')
         batch = validated_data.pop('batch')
         validated_data.pop('product_id')
         validated_data.pop('batch_id')
+        coupon_code = validated_data.pop('coupon_code', None)
+        
+        # Validate and apply coupon if provided
+        coupon = None
+        if coupon_code:
+            from .models import Coupon
+            try:
+                coupon = Coupon.objects.get(code=coupon_code.strip().upper())
+                
+                # Validate coupon
+                is_valid, message = coupon.is_valid()
+                if not is_valid:
+                    raise serializers.ValidationError({'coupon_code': message})
+                
+                # Check product restriction
+                if not coupon.can_apply_to_product(product):
+                    raise serializers.ValidationError({
+                        'coupon_code': 'Este cupom não é válido para este produto'
+                    })
+                
+                # Check minimum purchase (will be validated after calculating base price)
+                
+            except Coupon.DoesNotExist:
+                raise serializers.ValidationError({'coupon_code': 'Cupom não encontrado'})
         
         enrollment = Enrollment.objects.create(
             user=user,
             product=product,
             batch=batch,
+            coupon=coupon,
             **validated_data
         )
         
-        # Calculate amounts
+        # Calculate amounts (includes coupon discount)
         enrollment.calculate_amounts()
+        
+        # Validate minimum purchase for coupon
+        if coupon and enrollment.total_amount < coupon.min_purchase:
+            enrollment.delete()
+            raise serializers.ValidationError({
+                'coupon_code': f'Valor mínimo para este cupom é R$ {coupon.min_purchase}'
+            })
+        
+        # Increment coupon usage
+        if coupon:
+            coupon.increment_uses()
         enrollment.save()
         
         return enrollment

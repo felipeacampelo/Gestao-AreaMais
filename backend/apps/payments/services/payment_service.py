@@ -42,17 +42,37 @@ class PaymentService:
             return profile.asaas_customer_id
         
         # Create customer in Asaas
-        # Get CPF from enrollment form_data if not in profile
-        cpf = profile.cpf
-        if not cpf:
-            # Try to get from latest enrollment
-            from apps.enrollments.models import Enrollment
-            enrollment = Enrollment.objects.filter(user=user).order_by('-created_at').first()
-            if enrollment and enrollment.form_data:
-                cpf = enrollment.form_data.get('cpf', '').replace('.', '').replace('-', '')
+        # Get CPF from enrollment form_data first (more recent), then from profile
+        cpf = None
         
-        if not cpf or len(cpf) < 11:
-            raise ValueError("CPF válido é obrigatório para criar pagamento")
+        # Try to get from latest enrollment first
+        from apps.enrollments.models import Enrollment
+        enrollment = Enrollment.objects.filter(user=user).order_by('-created_at').first()
+        if enrollment and enrollment.form_data:
+            cpf = enrollment.form_data.get('cpf', '')
+        
+        # If not found in enrollment, use profile CPF
+        if not cpf:
+            cpf = profile.cpf
+        
+        # Debug: CPF before cleaning
+        print(f"🔍 DEBUG - CPF ANTES de limpar: '{cpf}' (type: {type(cpf)})")
+        
+        # Clean CPF format (remove dots, dashes, spaces)
+        if cpf:
+            cpf = cpf.replace('.', '').replace('-', '').replace(' ', '').strip()
+        
+        # Debug: CPF after cleaning
+        print(f"🔍 DEBUG - CPF DEPOIS de limpar: '{cpf}' (length: {len(cpf) if cpf else 0}, isdigit: {cpf.isdigit() if cpf else False})")
+        
+        # Validate CPF format
+        if not cpf or len(cpf) != 11 or not cpf.isdigit():
+            raise ValueError(f"CPF válido é obrigatório para criar pagamento. CPF fornecido: {cpf}")
+        
+        # Validate CPF algorithm
+        from ..utils import validate_cpf
+        if not validate_cpf(cpf):
+            raise ValueError(f"CPF inválido. Por favor, verifique o número digitado. CPF: {cpf}")
         
         customer_data = self.asaas.create_customer(
             name=user.get_full_name() or user.email,
@@ -311,8 +331,12 @@ class PaymentService:
                     enrollment.paid_at = timezone.now()
                 enrollment.save()
                 
-                # Send confirmation email
-                self._send_payment_confirmation_email(payment)
+                # Send payment confirmation email
+                try:
+                    from apps.enrollments.email_service import send_payment_confirmation_email
+                    send_payment_confirmation_email(enrollment)
+                except Exception as e:
+                    print(f"Erro ao enviar email de confirmação de pagamento: {e}")
     
     def _send_payment_confirmation_email(self, payment: 'Payment') -> None:
         """Send payment confirmation email to user."""

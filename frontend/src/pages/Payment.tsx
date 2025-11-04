@@ -19,6 +19,7 @@ export default function PaymentPage() {
   
   const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
   const [payment, setPayment] = useState<Payment | null>(null);
+  const [paymentLoaded, setPaymentLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
@@ -173,35 +174,16 @@ export default function PaymentPage() {
     }
   };
 
-  // Prevent going back to payment selection if payment is already created
-  const handleBackClick = () => {
-    if (payment && (payment.status === 'PENDING' || payment.status === 'CONFIRMED' || payment.status === 'RECEIVED')) {
-      // Don't allow going back if payment exists
-      return;
-    }
-    navigate('/');
-  };
-
-
   return (
     <div className="min-h-screen bg-gray-50 py-12">
-      <div className="container mx-auto px-4 max-w-4xl">
-        {/* Header */}
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        {/* Botão Voltar */}
         <button
-          onClick={handleBackClick}
-          className="flex items-center mb-8 font-medium"
-          style={{ color: payment && (payment.status === 'PENDING' || payment.status === 'CONFIRMED' || payment.status === 'RECEIVED') ? '#ccc' : 'rgb(165, 44, 240)' }}
-          onMouseEnter={(e) => {
-            if (!(payment && (payment.status === 'PENDING' || payment.status === 'CONFIRMED' || payment.status === 'RECEIVED'))) {
-              e.currentTarget.style.color = 'rgb(145, 24, 220)';
-            }
-          }}
-          onMouseLeave={(e) => {
-            if (!(payment && (payment.status === 'PENDING' || payment.status === 'CONFIRMED' || payment.status === 'RECEIVED'))) {
-              e.currentTarget.style.color = 'rgb(165, 44, 240)';
-            }
-          }}
-          disabled={!!(payment && (payment.status === 'PENDING' || payment.status === 'CONFIRMED' || payment.status === 'RECEIVED'))}
+          onClick={() => navigate(-1)}
+          className="flex items-center mb-6 font-medium transition-colors"
+          style={{ color: 'rgb(165, 44, 240)' }}
+          onMouseEnter={(e) => e.currentTarget.style.color = 'rgb(145, 24, 220)'}
+          onMouseLeave={(e) => e.currentTarget.style.color = 'rgb(165, 44, 240)'}
         >
           <ArrowLeft className="w-5 h-5 mr-2" style={{ color: 'inherit' }} />
           Voltar
@@ -218,23 +200,23 @@ export default function PaymentPage() {
 
         {!payment ? (
           /* Seleção de Pagamento */
-          <div className="bg-white rounded-xl shadow-lg p-8 mt-8">
-            <h1 className="text-3xl font-bold mb-2">Forma de Pagamento</h1>
+          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-8 mt-8">
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2">Forma de Pagamento</h1>
             <p className="text-gray-600 mb-8">
               Escolha como deseja pagar sua inscrição
             </p>
 
             {enrollment && (
-              <div className="rounded-lg p-6 mb-8" style={{ backgroundColor: 'rgba(165, 44, 240, 0.05)', border: '1px solid rgba(165, 44, 240, 0.2)' }}>
-                <h3 className="font-semibold text-lg mb-2">Resumo da Inscrição</h3>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
+              <div className="rounded-lg p-4 sm:p-6 mb-8" style={{ backgroundColor: 'rgba(165, 44, 240, 0.05)', border: '1px solid rgba(165, 44, 240, 0.2)' }}>
+                <h3 className="font-semibold text-lg mb-4">Resumo da Inscrição</h3>
+                <div className="space-y-3 text-sm">
+                  <div className="flex flex-col sm:flex-row sm:justify-between">
                     <span className="text-gray-600">Produto:</span>
-                    <span className="font-semibold ml-2">{enrollment.product.name}</span>
+                    <span className="font-semibold mt-1 sm:mt-0">{enrollment.product?.name}</span>
                   </div>
-                  <div>
+                  <div className="flex flex-col sm:flex-row sm:justify-between">
                     <span className="text-gray-600">Valor Total:</span>
-                    <span className="font-semibold ml-2">R$ {enrollment.final_amount}</span>
+                    <span className="font-semibold mt-1 sm:mt-0">R$ {parseFloat(enrollment.final_amount || '0').toFixed(2)}</span>
                   </div>
                 </div>
               </div>
@@ -248,27 +230,24 @@ export default function PaymentPage() {
                   setPaymentMethod('PIX_CASH');
                   setInstallments(1);
                 }}
-                className="border-2 rounded-lg p-6 cursor-pointer transition-all"
+                className="border-2 rounded-lg p-4 sm:p-6 cursor-pointer transition-all"
                 style={{
                   borderColor: paymentMethod === 'PIX_CASH' ? 'rgb(165, 44, 240)' : '#e5e7eb',
                   backgroundColor: paymentMethod === 'PIX_CASH' ? 'rgba(165, 44, 240, 0.05)' : 'transparent'
                 }}
               >
-                <div className="flex items-center justify-between">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div className="flex items-center">
-                    <QrCode className="w-6 h-6 mr-3" style={{ color: 'rgb(165, 44, 240)' }} />
+                    <QrCode className="w-6 h-6 mr-3 flex-shrink-0" style={{ color: 'rgb(165, 44, 240)' }} />
                     <div>
-                      <h3 className="font-semibold text-lg">PIX à Vista</h3>
-                      <p className="text-sm text-gray-600">Pagamento único com 10% de desconto</p>
+                      <h3 className="font-semibold text-base sm:text-lg">PIX à Vista</h3>
+                      <p className="text-xs sm:text-sm text-gray-600">Pagamento único</p>
                     </div>
                   </div>
                   {enrollment && (
-                    <div className="text-right">
-                      <div className="text-2xl font-bold" style={{ color: 'rgb(210, 243, 67)' }}>
-                        R$ {enrollment.product.active_batch?.pix_price.toFixed(2)}
-                      </div>
-                      <div className="text-sm text-gray-500 line-through">
-                        R$ {enrollment.final_amount}
+                    <div className="text-left sm:text-right">
+                      <div className="text-xl sm:text-2xl font-bold text-gray-900">
+                        R$ {parseFloat(enrollment.final_amount || '0').toFixed(2)}
                       </div>
                     </div>
                   )}
@@ -278,23 +257,23 @@ export default function PaymentPage() {
               {/* PIX Parcelado */}
               <div
                 onClick={() => setPaymentMethod('PIX_INSTALLMENT')}
-                className="border-2 rounded-lg p-6 cursor-pointer transition-all"
+                className="border-2 rounded-lg p-4 sm:p-6 cursor-pointer transition-all"
                 style={{
                   borderColor: paymentMethod === 'PIX_INSTALLMENT' ? 'rgb(165, 44, 240)' : '#e5e7eb',
                   backgroundColor: paymentMethod === 'PIX_INSTALLMENT' ? 'rgba(165, 44, 240, 0.05)' : 'transparent'
                 }}
               >
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                   <div className="flex items-center">
-                    <QrCode className="w-6 h-6 mr-3" style={{ color: 'rgb(165, 44, 240)' }} />
+                    <QrCode className="w-6 h-6 mr-3 flex-shrink-0" style={{ color: 'rgb(165, 44, 240)' }} />
                     <div>
-                      <h3 className="font-semibold text-lg">PIX Parcelado</h3>
-                      <p className="text-sm text-gray-600">Parcele em até 8x via PIX</p>
+                      <h3 className="font-semibold text-base sm:text-lg">PIX Parcelado</h3>
+                      <p className="text-xs sm:text-sm text-gray-600">Parcele em até 8x via PIX</p>
                     </div>
                   </div>
                   {enrollment && (
-                    <div className="text-2xl font-bold text-gray-900">
-                      R$ {enrollment.final_amount}
+                    <div className="text-xl sm:text-2xl font-bold text-gray-900">
+                      R$ {parseFloat(enrollment.final_amount || '0').toFixed(2)}
                     </div>
                   )}
                 </div>
@@ -322,23 +301,23 @@ export default function PaymentPage() {
               {/* Cartão de Crédito */}
               <div
                 onClick={() => setPaymentMethod('CREDIT_CARD')}
-                className="border-2 rounded-lg p-6 cursor-pointer transition-all"
+                className="border-2 rounded-lg p-4 sm:p-6 cursor-pointer transition-all"
                 style={{
                   borderColor: paymentMethod === 'CREDIT_CARD' ? 'rgb(165, 44, 240)' : '#e5e7eb',
                   backgroundColor: paymentMethod === 'CREDIT_CARD' ? 'rgba(165, 44, 240, 0.05)' : 'transparent'
                 }}
               >
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
                   <div className="flex items-center">
-                    <CreditCardIcon className="w-6 h-6 mr-3" style={{ color: 'rgb(165, 44, 240)' }} />
+                    <CreditCardIcon className="w-6 h-6 mr-3 flex-shrink-0" style={{ color: 'rgb(165, 44, 240)' }} />
                     <div>
-                      <h3 className="font-semibold text-lg">Cartão de Crédito</h3>
-                      <p className="text-sm text-gray-600">Parcele em até 8x no cartão</p>
+                      <h3 className="font-semibold text-base sm:text-lg">Cartão de Crédito</h3>
+                      <p className="text-xs sm:text-sm text-gray-600">Parcele em até 8x no cartão</p>
                     </div>
                   </div>
                   {enrollment && (
-                    <div className="text-2xl font-bold text-gray-900">
-                      R$ {enrollment.final_amount}
+                    <div className="text-xl sm:text-2xl font-bold text-gray-900">
+                      R$ {parseFloat(enrollment.final_amount || '0').toFixed(2)}
                     </div>
                   )}
                 </div>
@@ -393,7 +372,7 @@ export default function PaymentPage() {
           </div>
         ) : (
           /* Confirmação de Pagamento */
-          <div className="bg-white rounded-xl shadow-lg p-8 mt-8">
+          <div className="bg-white rounded-xl shadow-lg p-4 sm:p-8 mt-8">
             <div className="text-center mb-8">
               <div 
                 className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4"

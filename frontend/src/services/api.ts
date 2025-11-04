@@ -113,12 +113,22 @@ export const createEnrollment = (data: {
   product_id: number;
   batch_id: number;
   form_data: any;
+  coupon_code?: string;
 }) => api.post<Enrollment>('/enrollments/', data);
+
+export const validateCoupon = (data: {
+  code: string;
+  product_id: number;
+  amount: number;
+}) => api.post('/enrollments/validate-coupon/', data);
 
 export const getEnrollments = () => api.get<Enrollment[]>('/enrollments/');
 
 export const getEnrollment = (id: number) =>
   api.get<Enrollment>(`/enrollments/${id}/`);
+
+export const updateEnrollment = (id: number, data: { form_data: any }) =>
+  api.patch<Enrollment>(`/enrollments/${id}/`, data);
 
 // Payments
 export const createPayment = (data: {

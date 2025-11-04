@@ -6,7 +6,7 @@ from django.utils.translation import gettext_lazy as _
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils import timezone
-from .models import Enrollment
+from .models import Enrollment, Coupon
 
 
 @admin.register(Enrollment)
@@ -129,3 +129,66 @@ class EnrollmentAdmin(admin.ModelAdmin):
         
         return response
     export_to_csv.short_description = _('Exportar para CSV')
+
+
+@admin.register(Coupon)
+class CouponAdmin(admin.ModelAdmin):
+    """Admin for Coupon model."""
+    
+    list_display = ['code', 'discount_display', 'active_badge', 'uses_display', 'valid_period', 'created_at']
+    list_filter = ['active', 'discount_type', 'created_at']
+    search_fields = ['code', 'description']
+    readonly_fields = ['uses_count', 'created_at', 'updated_at']
+    filter_horizontal = ['products']
+    
+    fieldsets = (
+        (_('Informações Básicas'), {
+            'fields': ('code', 'description', 'active')
+        }),
+        (_('Desconto'), {
+            'fields': ('discount_type', 'discount_value', 'max_discount')
+        }),
+        (_('Restrições'), {
+            'fields': ('min_purchase', 'max_uses', 'uses_count', 'products')
+        }),
+        (_('Validade'), {
+            'fields': ('valid_from', 'valid_until')
+        }),
+        (_('Datas'), {
+            'fields': ('created_at', 'updated_at'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def discount_display(self, obj):
+        """Display discount with formatting."""
+        return obj.get_discount_display()
+    discount_display.short_description = _('Desconto')
+    
+    def active_badge(self, obj):
+        """Display active status with badge."""
+        is_valid, _ = obj.is_valid()
+        if is_valid:
+            return format_html(
+                '<span style="background-color: green; color: white; padding: 3px 10px; border-radius: 3px;">✓ Ativo</span>'
+            )
+        return format_html(
+            '<span style="background-color: red; color: white; padding: 3px 10px; border-radius: 3px;">✗ Inativo</span>'
+        )
+    active_badge.short_description = _('Status')
+    
+    def uses_display(self, obj):
+        """Display usage count."""
+        if obj.max_uses:
+            return f'{obj.uses_count}/{obj.max_uses}'
+        return f'{obj.uses_count}/∞'
+    uses_display.short_description = _('Usos')
+    
+    def valid_period(self, obj):
+        """Display validity period."""
+        return format_html(
+            '{}<br><small style="color: gray;">até {}</small>',
+            obj.valid_from.strftime('%d/%m/%Y'),
+            obj.valid_until.strftime('%d/%m/%Y')
+        )
+    valid_period.short_description = _('Período')

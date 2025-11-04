@@ -139,19 +139,25 @@ else:
     )
 CORS_ALLOW_CREDENTIALS = True
 
-# CSRF
-CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
-    'http://localhost:3000',
-    'http://127.0.0.1:3000',
-]
+# CSRF / Proxy / HTTPS
+CSRF_TRUSTED_ORIGINS = config(
+    'CSRF_TRUSTED_ORIGINS',
+    default='https://*.up.railway.app,https://gestao-areamais-production.up.railway.app,https://www.areamais.com.br,https://areamais.com.br',
+    cast=Csv()
+)
+USE_X_FORWARDED_HOST = True
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
 if DEBUG:
     # Allow ngrok origins in development
     CSRF_TRUSTED_ORIGINS += [
         'https://*.ngrok-free.app',
         'https://*.ngrok.io',
     ]
+else:
+    # Redirect HTTP to HTTPS only in production
+    SECURE_SSL_REDIRECT = True
 
 # REST Framework
 REST_FRAMEWORK = {

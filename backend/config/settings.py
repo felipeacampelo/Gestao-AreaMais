@@ -1,6 +1,7 @@
 """
 Django settings for enrollment system.
 """
+import os
 from pathlib import Path
 from decouple import config, Csv
 

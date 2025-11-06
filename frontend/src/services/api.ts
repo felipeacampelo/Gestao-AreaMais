@@ -1,6 +1,8 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:8000/api';
+// API base URL: configurable via environment (VITE_API_URL) for Railway/production
+// Falls back to localhost for local development
+const API_URL = (import.meta as any).env?.VITE_API_URL || 'http://localhost:8000/api';
 
 // Função para obter o CSRF token do cookie
 function getCookie(name: string): string | null {

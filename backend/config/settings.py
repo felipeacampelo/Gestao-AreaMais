@@ -154,6 +154,8 @@ CORS_ALLOW_HEADERS = [
     'x-csrftoken',
     'x-requested-with',
 ]
+CORS_EXPOSE_HEADERS = ['Content-Type', 'X-CSRFToken']
+CORS_PREFLIGHT_MAX_AGE = 86400
 
 # CSRF / Proxy / HTTPS
 CSRF_TRUSTED_ORIGINS = config(
@@ -171,9 +173,10 @@ if DEBUG:
         'https://*.ngrok-free.app',
         'https://*.ngrok.io',
     ]
-else:
-    # Redirect HTTP to HTTPS only in production
-    SECURE_SSL_REDIRECT = True
+# Desabilitado temporariamente para debug de CORS
+# else:
+#     # Redirect HTTP to HTTPS only in production
+#     SECURE_SSL_REDIRECT = True
 
 # REST Framework
 REST_FRAMEWORK = {

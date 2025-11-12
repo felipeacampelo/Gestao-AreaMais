@@ -128,12 +128,8 @@ AUTH_USER_MODEL = 'users.User'
 # Sites framework
 SITE_ID = 1
 
-# CORS
-CORS_ALLOWED_ORIGINS = config(
-    'CORS_ALLOWED_ORIGINS',
-    default='https://frontend-a-production.up.railway.app,https://areamais.com.br,https://www.areamais.com.br,http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173',
-    cast=Csv()
-)
+# CORS - Modo permissivo para debug
+CORS_ALLOW_ALL_ORIGINS = True  # Temporário para debug
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_METHODS = [
     'DELETE',

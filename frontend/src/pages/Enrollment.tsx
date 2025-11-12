@@ -521,16 +521,26 @@ export default function Enrollment() {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Qual seu líder de PG? *
+                  Quem é seu líder de PG? *
                 </label>
-                <input
-                  type="text"
+                <select
                   required
                   value={formData.lider_pg}
                   onChange={(e) => setFormData({ ...formData, lider_pg: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple focus:border-transparent text-gray-900 bg-white"
-                  placeholder="Nome do líder do seu PG"
-                />
+                >
+                  <option value="">Selecione seu líder de PG...</option>
+                  <option value="Cleber e Bruna">Cleber e Bruna</option>
+                  <option value="Thalles">Thalles</option>
+                  <option value="Matheus Vox">Matheus Vox</option>
+                  <option value="Rennan e Karol">Rennan e Karol</option>
+                  <option value="Guigo e Ana Lu">Guigo e Ana Lu</option>
+                  <option value="Lucas Luz e Liz">Lucas Luz e Liz</option>
+                  <option value="Lucas Daniel e Gih Bia">Lucas Daniel e Gih Bia</option>
+                  <option value="Lucas Cardoso e Manu Camargo">Lucas Cardoso e Manu Camargo</option>
+                  <option value="Pedrão e Julia">Pedrão e Julia</option>
+                  <option value="Não tenho PG">Não tenho PG</option>
+                </select>
               </div>
             </div>
 

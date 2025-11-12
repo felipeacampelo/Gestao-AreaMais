@@ -533,7 +533,7 @@ export default function Enrollment() {
                   <option value="Cleber e Bruna">Cleber e Bruna</option>
                   <option value="Thalles">Thalles</option>
                   <option value="Matheus Vox">Matheus Vox</option>
-                  <option value="Rennan e Karol">Rennan e Karol</option>
+                  <option value="Renan e Karol">Rennan e Karol</option>
                   <option value="Guigo e Ana Lu">Guigo e Ana Lu</option>
                   <option value="Lucas Luz e Liz">Lucas Luz e Liz</option>
                   <option value="Lucas Daniel e Gih Bia">Lucas Daniel e Gih Bia</option>

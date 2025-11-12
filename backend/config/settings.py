@@ -134,7 +134,7 @@ if DEBUG:
 else:
     CORS_ALLOWED_ORIGINS = config(
         'CORS_ALLOWED_ORIGINS',
-        default='http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173',
+        default='https://frontend-a-production.up.railway.app,https://areamais.com.br,https://www.areamais.com.br,http://localhost:3000,http://127.0.0.1:3000,http://localhost:5173,http://127.0.0.1:5173',
         cast=Csv()
     )
 CORS_ALLOW_CREDENTIALS = True

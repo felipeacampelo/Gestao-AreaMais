@@ -36,10 +36,21 @@ class PaymentService:
         if not user or not hasattr(user, 'email'):
             raise ValueError("Invalid user for payment creation")
         
-        profile, created = UserProfile.objects.get_or_create(user=user)
+        profile = user.profile
         
+        # Check if customer ID exists and is valid in current environment
         if profile.asaas_customer_id:
-            return profile.asaas_customer_id
+            try:
+                # Try to verify customer exists in Asaas
+                self.asaas._make_request('GET', f'customers/{profile.asaas_customer_id}')
+                return profile.asaas_customer_id
+            except AsaasAPIException as e:
+                # Customer doesn't exist (wrong environment or deleted), clear the ID
+                print(f"⚠️ Customer ID inválido (provavelmente de outro ambiente): {profile.asaas_customer_id}")
+                print(f"   Erro: {str(e)}")
+                print(f"   Recriando cliente no ambiente atual...")
+                profile.asaas_customer_id = None
+                profile.save()
         
         # Create customer in Asaas
         # Get CPF from enrollment form_data first (more recent), then from profile

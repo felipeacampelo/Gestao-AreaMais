@@ -108,20 +108,38 @@ class Batch(models.Model):
     )
     
     price = models.DecimalField(
-        _('Preço do Lote'),
+        _('Preço PIX à Vista'),
         max_digits=10,
         decimal_places=2,
         validators=[MinValueValidator(0)],
-        help_text=_('Preço específico deste lote (sobrescreve preço base)')
+        help_text=_('Preço para pagamento PIX à vista')
+    )
+    
+    pix_installment_price = models.DecimalField(
+        _('Preço PIX Parcelado'),
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        help_text=_('Preço para pagamento PIX parcelado')
+    )
+    
+    credit_card_price = models.DecimalField(
+        _('Preço Cartão de Crédito'),
+        max_digits=10,
+        decimal_places=2,
+        validators=[MinValueValidator(0)],
+        help_text=_('Preço para pagamento com cartão de crédito')
     )
     
     pix_discount_percentage = models.DecimalField(
-        _('Desconto PIX (%)'),
+        _('Desconto PIX (%) - DEPRECATED'),
         max_digits=5,
         decimal_places=2,
         default=0,
         validators=[MinValueValidator(0), MaxValueValidator(100)],
-        help_text=_('Desconto percentual para pagamento PIX à vista')
+        help_text=_('Campo obsoleto - usar price, pix_installment_price e credit_card_price'),
+        blank=True,
+        null=True
     )
     
     max_enrollments = models.IntegerField(
@@ -168,11 +186,6 @@ class Batch(models.Model):
         """Check if batch is currently active based on dates."""
         now = timezone.now()
         return self.start_date <= now <= self.end_date
-    
-    def calculate_pix_price(self):
-        """Calculate price with PIX discount applied."""
-        discount_amount = self.price * (self.pix_discount_percentage / 100)
-        return self.price - discount_amount
     
     def save(self, *args, **kwargs):
         """Auto-update status based on dates and enrollments."""

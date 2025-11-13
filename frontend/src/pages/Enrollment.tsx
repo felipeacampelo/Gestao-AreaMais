@@ -71,8 +71,12 @@ export default function Enrollment() {
   const checkCompletedEnrollment = async () => {
     try {
       const enrollmentsResponse = await getEnrollments();
+      const enrollmentsData = Array.isArray(enrollmentsResponse.data) 
+        ? enrollmentsResponse.data 
+        : (enrollmentsResponse.data as any).results || [];
+      
       // Find enrollment with paid status
-      const paidEnrollment = enrollmentsResponse.data.find(
+      const paidEnrollment = enrollmentsData.find(
         (enrollment: any) => enrollment.status === 'PAID'
       );
       
@@ -115,7 +119,7 @@ export default function Enrollment() {
     setCouponError('');
 
     try {
-      const baseAmount = parseFloat(String(selectedProduct.active_batch.pix_price || selectedProduct.active_batch.price));
+      const baseAmount = parseFloat(String(selectedProduct.active_batch.price));
       
       const response = await validateCoupon({
         code: couponCode.trim().toUpperCase(),
@@ -153,19 +157,13 @@ export default function Enrollment() {
       return;
     }
 
-    // Validate age (minimum 17 years)
+    // Validate age (block anyone born in 2010 or later)
     if (formData.data_nascimento) {
       const birthDate = new Date(formData.data_nascimento);
-      const today = new Date();
-      let age = today.getFullYear() - birthDate.getFullYear();
-      const monthDiff = today.getMonth() - birthDate.getMonth();
+      const birthYear = birthDate.getFullYear();
       
-      if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
-        age--;
-      }
-      
-      if (age < 17) {
-        setError('Você precisa ter no mínimo 17 anos para se inscrever.');
+      if (birthYear >= 2010) {
+        setError('Inscrições disponíveis apenas para nascidos até 2009.');
         setLoading(false);
         return;
       }
@@ -335,18 +333,6 @@ export default function Enrollment() {
                       {selectedProduct.active_batch.name}
                     </span>
                   </div>
-                  <div>
-                    <span className="text-gray-600">Valor:</span>
-                    <span className="font-semibold ml-2">
-                      R$ {selectedProduct.active_batch.price}
-                    </span>
-                  </div>
-                  <div>
-                    <span className="text-gray-600">PIX à vista:</span>
-                    <span className="font-semibold ml-2" style={{ color: 'rgba(0, 0, 0, 1)' }}>
-                      R$ {selectedProduct.active_batch.pix_price.toFixed(2)}
-                    </span>
-                  </div>
                 </div>
               )}
             </div>
@@ -402,14 +388,14 @@ export default function Enrollment() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <Calendar className="w-4 h-4 inline mr-2" />
-                  Data de Nascimento
+                  Data de Nascimento (nascidos até 2009)
                 </label>
                 <input
                   type="date"
                   required
                   value={formData.data_nascimento}
                   onChange={(e) => setFormData({ ...formData, data_nascimento: e.target.value })}
-                  max={new Date(new Date().setFullYear(new Date().getFullYear() - 17)).toISOString().split('T')[0]}
+                  max="2009-12-31"
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple focus:border-transparent text-gray-900 bg-white"
                 />
               </div>
@@ -471,7 +457,8 @@ export default function Enrollment() {
                 required
                 value={formData.tamanho_camiseta}
                 onChange={(e) => setFormData({ ...formData, tamanho_camiseta: e.target.value })}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple focus:border-transparent text-gray-900 bg-white"
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white appearance-none cursor-pointer"
+                style={{ backgroundImage: "url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e')", backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '1.25rem' }}
               >
                 <option value="">Selecione o tamanho...</option>
                 <option value="PP">PP</option>
@@ -495,7 +482,8 @@ export default function Enrollment() {
                   required
                   value={formData.membro_batista_capital}
                   onChange={(e) => setFormData({ ...formData, membro_batista_capital: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple focus:border-transparent text-gray-900 bg-white"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white appearance-none cursor-pointer"
+                  style={{ backgroundImage: "url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e')", backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '1.25rem' }}
                 >
                   <option value="">Selecione...</option>
                   <option value="sim">Sim</option>
@@ -527,13 +515,14 @@ export default function Enrollment() {
                   required
                   value={formData.lider_pg}
                   onChange={(e) => setFormData({ ...formData, lider_pg: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple focus:border-transparent text-gray-900 bg-white"
+                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-gray-900 bg-white appearance-none cursor-pointer"
+                  style={{ backgroundImage: "url('data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e')", backgroundRepeat: 'no-repeat', backgroundPosition: 'right 0.75rem center', backgroundSize: '1.25rem' }}
                 >
                   <option value="">Selecione seu líder de PG...</option>
                   <option value="Cleber e Bruna">Cleber e Bruna</option>
                   <option value="Thalles">Thalles</option>
                   <option value="Matheus Vox">Matheus Vox</option>
-                  <option value="Renan e Karol">Rennan e Karol</option>
+                  <option value="Renan e Karol">Renan e Karol</option>
                   <option value="Guigo e Ana Lu">Guigo e Ana Lu</option>
                   <option value="Lucas Luz e Liz">Lucas Luz e Liz</option>
                   <option value="Lucas Daniel e Gih Bia">Lucas Daniel e Gih Bia</option>

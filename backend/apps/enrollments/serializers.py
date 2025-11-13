@@ -17,7 +17,14 @@ class EnrollmentSerializer(serializers.ModelSerializer):
         decimal_places=2,
         read_only=True
     )
+    max_installments = serializers.SerializerMethodField()
     payments = serializers.SerializerMethodField()
+    
+    def get_max_installments(self, obj):
+        """Get max installments based on coupon."""
+        if obj.coupon and obj.coupon.enable_12x_installments:
+            return 10
+        return 7
     
     def get_payments(self, obj):
         """Get payments for this enrollment."""
@@ -47,6 +54,7 @@ class EnrollmentSerializer(serializers.ModelSerializer):
             'status',
             'payment_method',
             'installments',
+            'max_installments',
             'total_amount',
             'discount_amount',
             'final_amount',
@@ -94,7 +102,7 @@ class EnrollmentCreateSerializer(serializers.Serializer):
         if batch.status != 'ACTIVE':
             raise serializers.ValidationError({'batch_id': 'Lote não está ativo'})
         
-        # Validate age (minimum 17 years)
+        # Validate age (block anyone born in 2010 or later)
         form_data = data.get('form_data', {})
         data_nascimento = form_data.get('data_nascimento')
         
@@ -102,12 +110,11 @@ class EnrollmentCreateSerializer(serializers.Serializer):
             from datetime import datetime, date
             try:
                 birth_date = datetime.strptime(data_nascimento, '%Y-%m-%d').date()
-                today = date.today()
-                age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
                 
-                if age < 17:
+                # Block anyone born in 2010 or later
+                if birth_date.year >= 2010:
                     raise serializers.ValidationError({
-                        'form_data': 'Você precisa ter no mínimo 17 anos para se inscrever.'
+                        'form_data': 'Inscrições disponíveis apenas para nascidos até 2009.'
                     })
             except ValueError:
                 raise serializers.ValidationError({

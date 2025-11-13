@@ -27,6 +27,11 @@ export default function PaymentPage() {
   const [paymentMethod, setPaymentMethod] = useState<'PIX_CASH' | 'PIX_INSTALLMENT' | 'CREDIT_CARD'>('PIX_CASH');
   const [installments, setInstallments] = useState(1);
   const [showCardForm, setShowCardForm] = useState(false);
+  
+  // Calculate prices based on batch
+  const pixCashPrice = enrollment?.batch?.price ? parseFloat(String(enrollment.batch.price)) : 0;
+  const pixInstallmentPrice = enrollment?.batch?.pix_installment_price ? parseFloat(String(enrollment.batch.pix_installment_price)) : 0;
+  const creditCardPrice = enrollment?.batch?.credit_card_price ? parseFloat(String(enrollment.batch.credit_card_price)) : 0;
 
   const steps = [
     { number: 1, title: 'Dados Pessoais', description: 'Informações básicas' },
@@ -247,7 +252,7 @@ export default function PaymentPage() {
                   {enrollment && (
                     <div className="text-left sm:text-right">
                       <div className="text-xl sm:text-2xl font-bold text-gray-900">
-                        R$ {parseFloat(enrollment.final_amount || '0').toFixed(2)}
+                        R$ {pixCashPrice.toFixed(2)}
                       </div>
                     </div>
                   )}
@@ -273,7 +278,7 @@ export default function PaymentPage() {
                   </div>
                   {enrollment && (
                     <div className="text-xl sm:text-2xl font-bold text-gray-900">
-                      R$ {parseFloat(enrollment.final_amount || '0').toFixed(2)}
+                      R$ {pixInstallmentPrice.toFixed(2)}
                     </div>
                   )}
                 </div>
@@ -288,9 +293,9 @@ export default function PaymentPage() {
                       onChange={(e) => setInstallments(Number(e.target.value))}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple text-gray-900 bg-white"
                     >
-                      {[2, 3, 4, 5, 6, 7, 8].map((num) => (
+                      {[2, 3, 4, 5, 6, 7].map((num) => (
                         <option key={num} value={num}>
-                          {num}x de R$ {enrollment ? (parseFloat(enrollment.final_amount) / num).toFixed(2) : '0.00'}
+                          {num}x de R$ {(pixInstallmentPrice / num).toFixed(2)}
                         </option>
                       ))}
                     </select>
@@ -317,7 +322,7 @@ export default function PaymentPage() {
                   </div>
                   {enrollment && (
                     <div className="text-xl sm:text-2xl font-bold text-gray-900">
-                      R$ {parseFloat(enrollment.final_amount || '0').toFixed(2)}
+                      R$ {creditCardPrice.toFixed(2)}
                     </div>
                   )}
                 </div>
@@ -325,19 +330,21 @@ export default function PaymentPage() {
                 {paymentMethod === 'CREDIT_CARD' && (
                   <div className="mt-4 pt-4 border-t">
                     <label className="block text-sm font-medium text-gray-700 mb-2">
-                      Número de parcelas:
+                      Número de Parcelas
                     </label>
-                    <select
-                      value={installments}
-                      onChange={(e) => setInstallments(Number(e.target.value))}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple text-gray-900 bg-white"
-                    >
-                      {[1, 2, 3, 4, 5, 6, 7, 8].map((num) => (
-                        <option key={num} value={num}>
-                          {num}x de R$ {enrollment ? (parseFloat(enrollment.final_amount) / num).toFixed(2) : '0.00'}
-                        </option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <select
+                        value={installments}
+                        onChange={(e) => setInstallments(Number(e.target.value))}
+                        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none bg-white text-gray-900"
+                      >
+                        {[1, 2, 3, 4, 5, 6, 7].map((num) => (
+                          <option key={num} value={num}>
+                            {num}x de R$ {(creditCardPrice / num).toFixed(2)}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 )}
               </div>

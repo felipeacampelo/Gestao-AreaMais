@@ -11,7 +11,7 @@ class BatchInline(admin.TabularInline):
     """Inline admin for batches within product."""
     model = Batch
     extra = 0
-    fields = ['name', 'start_date', 'end_date', 'price', 'pix_discount_percentage', 'max_enrollments', 'status']
+    fields = ['name', 'start_date', 'end_date', 'price', 'pix_installment_price', 'credit_card_price', 'max_enrollments', 'status']
     readonly_fields = ['status']
 
 
@@ -61,7 +61,7 @@ class ProductAdmin(admin.ModelAdmin):
 class BatchAdmin(admin.ModelAdmin):
     """Admin for Batch model."""
     
-    list_display = ['name', 'product', 'price', 'pix_discount_percentage', 'status_badge', 'enrollment_progress', 'date_range']
+    list_display = ['name', 'product', 'price', 'pix_installment_price', 'credit_card_price', 'status_badge', 'enrollment_progress', 'date_range']
     list_filter = ['status', 'product', 'start_date']
     search_fields = ['name', 'product__name']
     readonly_fields = ['status', 'created_at', 'updated_at', 'current_enrollments']
@@ -75,7 +75,8 @@ class BatchAdmin(admin.ModelAdmin):
             'fields': ('name', 'start_date', 'end_date')
         }),
         (_('Preços'), {
-            'fields': ('price', 'pix_discount_percentage')
+            'fields': ('price', 'pix_installment_price', 'credit_card_price'),
+            'description': 'Preço PIX à Vista | Preço PIX Parcelado | Preço Cartão de Crédito'
         }),
         (_('Vagas'), {
             'fields': ('max_enrollments', 'current_enrollments')

@@ -55,9 +55,11 @@ export interface Batch {
   name: string;
   start_date: string;
   end_date: string;
-  price: string;
-  pix_discount_percentage: string;
-  pix_price: number;
+  price: string; // PIX à vista
+  pix_installment_price: string; // PIX parcelado
+  credit_card_price: string; // Cartão de crédito
+  pix_discount_percentage?: string; // Deprecated
+  pix_price?: number; // Deprecated
   max_enrollments: number;
   current_enrollments: number;
   is_full: boolean;

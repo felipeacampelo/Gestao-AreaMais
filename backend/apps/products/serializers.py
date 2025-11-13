@@ -10,7 +10,6 @@ class BatchSerializer(serializers.ModelSerializer):
     
     current_enrollments = serializers.IntegerField(read_only=True)
     is_full = serializers.BooleanField(read_only=True)
-    pix_price = serializers.SerializerMethodField()
     
     class Meta:
         model = Batch
@@ -20,17 +19,14 @@ class BatchSerializer(serializers.ModelSerializer):
             'start_date',
             'end_date',
             'price',
+            'pix_installment_price',
+            'credit_card_price',
             'pix_discount_percentage',
-            'pix_price',
             'max_enrollments',
             'current_enrollments',
             'is_full',
             'status',
         ]
-    
-    def get_pix_price(self, obj):
-        """Get price with PIX discount applied."""
-        return float(obj.calculate_pix_price())
 
 
 class ProductSerializer(serializers.ModelSerializer):

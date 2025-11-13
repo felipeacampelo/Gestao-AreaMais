@@ -150,23 +150,25 @@ class Enrollment(models.Model):
     
     def calculate_amounts(self):
         """Calculate total, discount and final amounts based on batch, payment method and coupon."""
-        self.total_amount = self.batch.price
+        # Determine base price based on payment method
+        if self.payment_method == 'PIX_CASH':
+            self.total_amount = self.batch.price  # PIX à vista
+        elif self.payment_method == 'PIX_INSTALLMENT':
+            self.total_amount = self.batch.pix_installment_price  # PIX parcelado
+        elif self.payment_method == 'CREDIT_CARD':
+            self.total_amount = self.batch.credit_card_price  # Cartão de crédito
+        else:
+            # Fallback to PIX cash price
+            self.total_amount = self.batch.price
         
-        # If coupon exists, apply only coupon discount (same price for all payment methods)
+        # Apply coupon discount if exists
         if self.coupon:
             coupon_discount_value = self.coupon.calculate_discount(self.total_amount)
             self.coupon_discount = Decimal(str(coupon_discount_value))
             self.discount_amount = self.coupon_discount
         else:
-            # No coupon: apply PIX discount if payment is PIX à vista
             self.coupon_discount = Decimal('0.00')
-            
-            if self.payment_method == 'PIX_CASH':
-                discount_percentage = self.batch.pix_discount_percentage
-                pix_discount = self.total_amount * (discount_percentage / 100)
-                self.discount_amount = pix_discount
-            else:
-                self.discount_amount = Decimal('0.00')
+            self.discount_amount = Decimal('0.00')
         
         # Final amount
         self.final_amount = self.total_amount - self.discount_amount
@@ -260,6 +262,12 @@ class Coupon(models.Model):
         blank=True,
         verbose_name='Descrição',
         help_text='Descrição interna do cupom'
+    )
+    
+    enable_12x_installments = models.BooleanField(
+        default=False,
+        verbose_name='Habilitar 12x',
+        help_text='Permite parcelamento em até 12x (padrão é 7x)'
     )
     
     # Restrições

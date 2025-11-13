@@ -40,14 +40,19 @@ export default function Home() {
   const product = products[0];
   const activeBatch = product?.active_batch;
   
-  // Use actual values from the product
-  const basePrice = activeBatch?.price 
+  // Use actual values from the product - now with separate prices for each payment method
+  const pixCashPrice = activeBatch?.price 
     ? parseFloat(String(activeBatch.price)) 
     : 900;
-  const pixPrice = activeBatch?.pix_price 
-    ? parseFloat(String(activeBatch.pix_price))
-    : (basePrice * 0.9);
-  const installmentValue = (basePrice / 8).toFixed(2);
+  const pixInstallmentPrice = activeBatch?.pix_installment_price 
+    ? parseFloat(String(activeBatch.pix_installment_price))
+    : 1000;
+  const creditCardPrice = activeBatch?.credit_card_price 
+    ? parseFloat(String(activeBatch.credit_card_price))
+    : 1100;
+  const maxInstallments = 7; // Padrão 7x, cupons especiais podem habilitar 12x
+  const pixInstallmentValue = (pixInstallmentPrice / maxInstallments).toFixed(2);
+  const creditCardInstallmentValue = (creditCardPrice / maxInstallments).toFixed(2);
 
   const handleLogout = async () => {
     await logout();
@@ -191,21 +196,6 @@ export default function Home() {
               <p className="text-gray-600">Acampamento El Rancho</p>
             </div>
 
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4" style={{ backgroundColor: 'rgba(165, 44, 240, 0.1)' }}>
-                <Users className="w-8 h-8" style={{ color: 'rgb(165, 44, 240)' }} />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Vagas</h3>
-              <p className="text-gray-600"></p>
-            </div>
-
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4" style={{ backgroundColor: 'rgba(165, 44, 240, 0.1)' }}>
-                <Clock className="w-8 h-8" style={{ color: 'rgb(165, 44, 240)' }} />
-              </div>
-              <h3 className="text-xl font-semibold mb-2">Duração</h3>
-              <p className="text-gray-600">3 dias</p>
-            </div>
           </div>
         </div>
       </section>
@@ -241,17 +231,16 @@ export default function Home() {
             </p>
           </div>
 
-          <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
-            {/* PIX */}
+          <div className="grid md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+            {/* PIX à Vista */}
             <div className="card border-2" style={{ borderColor: 'rgb(165, 44, 240)' }}>
               <div className="text-center">
                 <div className="inline-block px-4 py-1 rounded-full text-sm font-semibold mb-4" style={{ backgroundColor: 'rgb(220, 253, 97)', color: '#000000' }}>
-                  10% de desconto
+                  Melhor Preço
                 </div>
                 <h3 className="text-2xl font-bold mb-2">PIX à Vista</h3>
                 <div className="text-4xl font-bold mb-4" style={{ color: 'rgb(165, 44, 240)' }}>
-                  R$ {pixPrice.toFixed(2)}
-                  <span className="text-lg text-gray-500 line-through ml-2">R$ {basePrice.toFixed(2)}</span>
+                  R$ {pixCashPrice.toFixed(2)}
                 </div>
                 <p className="text-gray-600 mb-6">Pagamento único via PIX</p>
                 <button onClick={() => navigate('/inscricao')} className="btn-primary w-full">
@@ -260,16 +249,33 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Parcelado */}
+            {/* PIX Parcelado */}
             <div className="card border-2" style={{ borderColor: 'rgb(165, 44, 240)' }}>
               <div className="text-center">
-                <h3 className="text-2xl font-bold mb-2">Parcelado</h3>
+                <h3 className="text-2xl font-bold mb-2">PIX Parcelado</h3>
                 <div className="text-4xl font-bold mb-4" style={{ color: 'rgb(165, 44, 240)' }}>
-                  R$ {basePrice.toFixed(2)}
+                  R$ {pixInstallmentPrice.toFixed(2)}
                 </div>
                 <p className="text-gray-600 mb-6">
-                  Até 8x de R$ {installmentValue}<br/>
-                  PIX ou Cartão
+                  Até 7x de R$ {pixInstallmentValue}<br/>
+                  via PIX
+                </p>
+                <button onClick={() => navigate('/inscricao')} className="btn-primary w-full">
+                  Inscrever-se
+                </button>
+              </div>
+            </div>
+
+            {/* Cartão de Crédito */}
+            <div className="card border-2" style={{ borderColor: 'rgb(165, 44, 240)' }}>
+              <div className="text-center">
+                <h3 className="text-2xl font-bold mb-2">Cartão de Crédito</h3>
+                <div className="text-4xl font-bold mb-4" style={{ color: 'rgb(165, 44, 240)' }}>
+                  R$ {creditCardPrice.toFixed(2)}
+                </div>
+                <p className="text-gray-600 mb-6">
+                  Até 7x de R$ {creditCardInstallmentValue}<br/>
+                  no cartão
                 </p>
                 <button onClick={() => navigate('/inscricao')} className="btn-primary w-full">
                   Inscrever-se

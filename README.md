@@ -5,7 +5,7 @@ Sistema de inscrição com backend em Django e frontend em React.
 ## Estrutura do Projeto
 
 ```
-windsurf-project/
+areamais/
 ├── backend/           # Aplicação Django
 └── frontend/          # Aplicação React
 ```

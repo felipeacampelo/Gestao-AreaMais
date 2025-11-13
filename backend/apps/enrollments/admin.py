@@ -13,7 +13,7 @@ from .models import Enrollment, Coupon
 class EnrollmentAdmin(admin.ModelAdmin):
     """Admin for Enrollment model."""
     
-    list_display = ['id', 'user_info', 'product', 'batch', 'status_badge', 'payment_method_display', 'final_amount', 'installments', 'created_at']
+    list_display = ['id', 'user_info', 'product', 'batch', 'status_badge', 'payment_method_display', 'final_amount', 'installments', 'shirt_size', 'pg_leader', 'created_at']
     list_filter = ['status', 'payment_method', 'batch__product', 'created_at']
     search_fields = ['user__email', 'user__first_name', 'user__last_name', 'product__name']
     readonly_fields = ['created_at', 'updated_at', 'paid_at', 'total_amount', 'discount_amount', 'final_amount']
@@ -89,6 +89,16 @@ class EnrollmentAdmin(admin.ModelAdmin):
         )
     payment_method_display.short_description = _('Método')
     
+    def shirt_size(self, obj):
+        """Display shirt size from form_data."""
+        return obj.form_data.get('tamanho_camiseta', '-')
+    shirt_size.short_description = _('Camiseta')
+    
+    def pg_leader(self, obj):
+        """Display PG leader from form_data."""
+        return obj.form_data.get('lider_pg', '-')
+    pg_leader.short_description = _('Líder PG')
+    
     def mark_as_paid(self, request, queryset):
         """Mark selected enrollments as paid."""
         updated = queryset.filter(status='PENDING_PAYMENT').update(
@@ -105,26 +115,47 @@ class EnrollmentAdmin(admin.ModelAdmin):
     cancel_enrollments.short_description = _('Cancelar inscrições')
     
     def export_to_csv(self, request, queryset):
-        """Export enrollments to CSV."""
+        """Export enrollments to CSV with all form data."""
         import csv
         from django.http import HttpResponse
         
-        response = HttpResponse(content_type='text/csv')
+        response = HttpResponse(content_type='text/csv; charset=utf-8-sig')
         response['Content-Disposition'] = 'attachment; filename="inscricoes.csv"'
         
         writer = csv.writer(response)
-        writer.writerow(['ID', 'Usuário', 'Email', 'Produto', 'Lote', 'Status', 'Valor', 'Data'])
+        # Header with all fields
+        writer.writerow([
+            'ID', 'Nome Completo', 'Email', 'Telefone', 'CPF', 'RG',
+            'Data Nascimento', 'Tamanho Camiseta', 'Membro Batista Capital',
+            'Igreja', 'Líder PG', 'Produto', 'Lote', 'Status',
+            'Método Pagamento', 'Parcelas', 'Valor Total', 'Desconto',
+            'Valor Final', 'Data Inscrição', 'Data Pagamento'
+        ])
         
         for enrollment in queryset:
+            form_data = enrollment.form_data
             writer.writerow([
                 enrollment.id,
-                enrollment.user.get_full_name() or enrollment.user.email,
-                enrollment.user.email,
+                form_data.get('nome_completo', ''),
+                form_data.get('email', ''),
+                form_data.get('telefone', ''),
+                form_data.get('cpf', ''),
+                form_data.get('rg', ''),
+                form_data.get('data_nascimento', ''),
+                form_data.get('tamanho_camiseta', ''),
+                form_data.get('membro_batista_capital', ''),
+                form_data.get('igreja', ''),
+                form_data.get('lider_pg', ''),
                 enrollment.product.name,
                 enrollment.batch.name,
                 enrollment.get_status_display(),
+                enrollment.get_payment_method_display() if enrollment.payment_method else '',
+                enrollment.installments or '',
+                enrollment.total_amount,
+                enrollment.discount_amount,
                 enrollment.final_amount,
-                enrollment.created_at.strftime('%d/%m/%Y %H:%M')
+                enrollment.created_at.strftime('%d/%m/%Y %H:%M'),
+                enrollment.paid_at.strftime('%d/%m/%Y %H:%M') if enrollment.paid_at else ''
             ])
         
         return response

@@ -82,17 +82,37 @@ export default function AdminDashboard() {
   };
 
   const exportToCSV = () => {
-    const headers = ['ID', 'Nome', 'Email', 'Telefone', 'CPF', 'Produto', 'Status', 'Valor', 'Data'];
+    const headers = [
+      'ID', 'Nome Completo', 'Email', 'Telefone', 'CPF', 'RG',
+      'Data Nascimento', 'Tamanho Camiseta', 'Membro Batista Capital',
+      'Igreja', 'Líder PG', 'Produto', 'Lote', 'Status',
+      'Método Pagamento', 'Parcelas', 'Valor Total', 'Desconto',
+      'Valor Final', 'Data Inscrição', 'Data Pagamento'
+    ];
     const rows = enrollments.map(e => [
       e.id,
       e.form_data?.nome_completo || '',
       e.user_email,
       e.form_data?.telefone || '',
       e.form_data?.cpf || '',
+      e.form_data?.rg || '',
+      e.form_data?.data_nascimento || '',
+      e.form_data?.tamanho_camiseta || '',
+      e.form_data?.membro_batista_capital || '',
+      e.form_data?.igreja || '',
+      e.form_data?.lider_pg || '',
       e.product?.name || '',
+      e.batch?.name || '',
       e.status,
-      `R$ ${e.final_amount}`,
-      new Date(e.created_at).toLocaleDateString('pt-BR')
+      e.payment_method === 'PIX_CASH' ? 'PIX à Vista' : 
+      e.payment_method === 'PIX_INSTALLMENT' ? 'PIX Parcelado' : 
+      e.payment_method === 'CREDIT_CARD' ? 'Cartão de Crédito' : '',
+      e.installments || '',
+      e.total_amount || '',
+      e.discount_amount || '',
+      e.final_amount,
+      new Date(e.created_at).toLocaleDateString('pt-BR'),
+      e.paid_at ? new Date(e.paid_at).toLocaleDateString('pt-BR') : ''
     ]);
 
     const csvContent = [
@@ -287,10 +307,10 @@ export default function AdminDashboard() {
                   <th className="text-left py-3 px-4 font-semibold">Nome</th>
                   <th className="text-left py-3 px-4 font-semibold">Email</th>
                   <th className="text-left py-3 px-4 font-semibold">Telefone</th>
+                  <th className="text-left py-3 px-4 font-semibold">Camiseta</th>
+                  <th className="text-left py-3 px-4 font-semibold">Líder PG</th>
                   <th className="text-left py-3 px-4 font-semibold">Status</th>
-                  <th className="text-left py-3 px-4 font-semibold">Parcelas</th>
                   <th className="text-left py-3 px-4 font-semibold">Valor</th>
-                  <th className="text-left py-3 px-4 font-semibold">Data</th>
                   <th className="text-left py-3 px-4 font-semibold">Ações</th>
                 </tr>
               </thead>
@@ -301,6 +321,8 @@ export default function AdminDashboard() {
                     <td className="py-3 px-4 font-medium">{enrollment.form_data?.nome_completo || '-'}</td>
                     <td className="py-3 px-4">{enrollment.user_email}</td>
                     <td className="py-3 px-4">{enrollment.form_data?.telefone || '-'}</td>
+                    <td className="py-3 px-4">{enrollment.form_data?.tamanho_camiseta || '-'}</td>
+                    <td className="py-3 px-4">{enrollment.form_data?.lider_pg || '-'}</td>
                     <td className="py-3 px-4">
                       <span
                         className="px-3 py-1 rounded-full text-sm font-medium"
@@ -322,20 +344,7 @@ export default function AdminDashboard() {
                          enrollment.status}
                       </span>
                     </td>
-                    <td className="py-3 px-4">
-                      {enrollment.payment_method === 'PIX_INSTALLMENT' ? (
-                        <span className="text-sm">
-                          {enrollment.payments?.filter((p: any) => p.status === 'RECEIVED' || p.status === 'CONFIRMED').length || 0}/{enrollment.installments}
-                          <span className="text-gray-500 ml-1">pagas</span>
-                        </span>
-                      ) : (
-                        <span className="text-gray-400">-</span>
-                      )}
-                    </td>
                     <td className="py-3 px-4 font-medium">R$ {enrollment.final_amount}</td>
-                    <td className="py-3 px-4">
-                      {new Date(enrollment.created_at).toLocaleDateString('pt-BR')}
-                    </td>
                     <td className="py-3 px-4">
                       <button
                         onClick={() => setSelectedEnrollment(enrollment)}
@@ -401,6 +410,33 @@ export default function AdminDashboard() {
                       <div>
                         <label className="text-sm text-gray-600">RG</label>
                         <p className="font-medium">{selectedEnrollment.form_data?.rg || '-'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Dados do Acampamento */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-3" style={{ color: 'rgb(165, 44, 240)' }}>
+                      Dados do Acampamento
+                    </h3>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm text-gray-600">Tamanho da Camiseta</label>
+                        <p className="font-medium">{selectedEnrollment.form_data?.tamanho_camiseta || '-'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm text-gray-600">Membro Batista Capital</label>
+                        <p className="font-medium">{selectedEnrollment.form_data?.membro_batista_capital === 'sim' ? 'Sim' : selectedEnrollment.form_data?.membro_batista_capital === 'nao' ? 'Não' : '-'}</p>
+                      </div>
+                      {selectedEnrollment.form_data?.membro_batista_capital === 'nao' && (
+                        <div>
+                          <label className="text-sm text-gray-600">Igreja</label>
+                          <p className="font-medium">{selectedEnrollment.form_data?.igreja || '-'}</p>
+                        </div>
+                      )}
+                      <div>
+                        <label className="text-sm text-gray-600">Líder de PG</label>
+                        <p className="font-medium">{selectedEnrollment.form_data?.lider_pg || '-'}</p>
                       </div>
                     </div>
                   </div>

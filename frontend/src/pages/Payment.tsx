@@ -77,6 +77,10 @@ export default function PaymentPage() {
     const pollInterval = setInterval(async () => {
       try {
         const response = await getEnrollment(Number(enrollmentId));
+        
+        // Update enrollment data
+        setEnrollment(response.data);
+        
         // Find the SAME payment by ID, not just the first one
         const updatedPayment = response.data.payments?.find((p: any) => p.id === payment.id);
         
@@ -86,6 +90,7 @@ export default function PaymentPage() {
           setPayment(updatedPayment);
           
           if (updatedPayment.status === 'CONFIRMED' || updatedPayment.status === 'RECEIVED') {
+            console.log('Payment confirmed! Stopping polling.');
             clearInterval(pollInterval);
           }
         }
@@ -512,7 +517,31 @@ export default function PaymentPage() {
               </div>
             </div>
 
-            <div className="text-center">
+            <div className="text-center space-y-4">
+              {payment.status !== 'CONFIRMED' && payment.status !== 'RECEIVED' && (
+                <div className="space-y-3">
+                  <p className="text-sm text-gray-600">
+                    Já pagou e ainda mostra aguardando pagamento? Clique em atualizar status para verificar. Você também pode acessar a página "minha inscrição"
+                  </p>
+                  <button
+                    onClick={async () => {
+                      try {
+                        const response = await getEnrollment(Number(enrollmentId));
+                        setEnrollment(response.data);
+                        const updatedPayment = response.data.payments?.find((p: any) => p.id === payment.id);
+                        if (updatedPayment) {
+                          setPayment(updatedPayment);
+                        }
+                      } catch (err) {
+                        console.error('Error refreshing payment:', err);
+                      }
+                    }}
+                    className="btn-primary"
+                  >
+                    🔄 Atualizar Status de Pagamento
+                  </button>
+                </div>
+              )}
               <button
                 onClick={() => navigate('/')}
                 className="btn-secondary"

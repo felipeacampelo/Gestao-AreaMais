@@ -388,7 +388,7 @@ export default function Enrollment() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   <Calendar className="w-4 h-4 inline mr-2" />
-                  Data de Nascimento (nascidos até 2009)
+                  Data de Nascimento
                 </label>
                 <input
                   type="date"

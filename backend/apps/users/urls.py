@@ -24,6 +24,7 @@ from .admin_views import (
     admin_batch_update,
     admin_batch_delete,
 )
+from .test_email_view import test_email, email_config
 
 app_name = 'users'
 
@@ -53,6 +54,10 @@ urlpatterns = [
     path('admin/batches/create/', admin_batch_create, name='admin-batch-create'),
     path('admin/batches/<int:pk>/', admin_batch_update, name='admin-batch-update'),
     path('admin/batches/<int:pk>/delete/', admin_batch_delete, name='admin-batch-delete'),
+    
+    # Email testing endpoints (admin only)
+    path('test-email/', test_email, name='test-email'),
+    path('email-config/', email_config, name='email-config'),
     
     # Optional: dj-rest-auth endpoints (if you want to keep them)
     # path('', include('dj_rest_auth.urls')),

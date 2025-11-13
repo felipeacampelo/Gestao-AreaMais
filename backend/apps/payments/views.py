@@ -67,6 +67,7 @@ class AsaasWebhookView(APIView):
     def post(self, request):
         """Process Asaas webhook."""
         import logging
+        from threading import Thread
         logger = logging.getLogger(__name__)
         
         # Log webhook received
@@ -83,20 +84,23 @@ class AsaasWebhookView(APIView):
         #         status=status.HTTP_401_UNAUTHORIZED
         #     )
         
-        # Process webhook
-        try:
-            service = PaymentService()
-            service.process_webhook(request.data)
-            logger.info(f'Webhook processed successfully')
-            print(f'[WEBHOOK] Processed successfully')
-            return Response({'status': 'processed'}, status=status.HTTP_200_OK)
-        except Exception as e:
-            logger.error(f'Webhook error: {str(e)}')
-            print(f'[WEBHOOK] Error: {str(e)}')
-            return Response(
-                {'error': str(e)},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # Process webhook asynchronously to avoid timeout
+        def process_async():
+            try:
+                service = PaymentService()
+                service.process_webhook(request.data)
+                logger.info(f'Webhook processed successfully')
+                print(f'[WEBHOOK] Processed successfully')
+            except Exception as e:
+                logger.error(f'Webhook error: {str(e)}')
+                print(f'[WEBHOOK] Error: {str(e)}')
+        
+        # Start processing in background thread
+        thread = Thread(target=process_async)
+        thread.start()
+        
+        # Return immediately to avoid timeout
+        return Response({'status': 'received'}, status=status.HTTP_200_OK)
 
 
 @api_view(['POST'])

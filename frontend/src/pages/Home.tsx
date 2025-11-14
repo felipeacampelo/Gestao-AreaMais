@@ -205,15 +205,19 @@ export default function Home() {
         <div className="container mx-auto px-4">
           <div className="max-w-3xl mx-auto text-center">
             <h2 className="text-3xl md:text-4xl font-bold mb-6">
-              Sobre o Acampamento
+              ACAMPAMENTO A+ 2026
             </h2>
             <p className="text-lg text-gray-700 mb-6">
-              Um final de semana especial de comunhão, adoração e renovação espiritual. 
-              Momentos de louvor, pregações inspiradoras, atividades em grupo e muito mais!
+              As ruas estão cheias de pessoas alegres, bandeiras são levantadas e hinos são entoados. 
+              Estão todos em festa, mas, falta algo. 
+              Todos tem um sorriso no rosto, mas enxergo corações vazios, sozinhos, em busca de um propósito maior.
             </p>
             <p className="text-lg text-gray-700">
-              Prepare-se para uma experiência única de encontro com Deus e fortalecimento 
-              dos laços de amizade com os irmãos.
+              Em 2026, iremos pelas ruas levantar a bandeira, gritando a verdade que é Cristo. So ele é a esperança verdadeira.  
+              Vamos fazer parte disso?
+
+              <h2 className="text-3xl md:text-4xl font-bold mb-6">
+              </h2>
             </p>
           </div>
         </div>

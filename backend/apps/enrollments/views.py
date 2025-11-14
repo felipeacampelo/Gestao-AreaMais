@@ -43,11 +43,12 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         enrollment = serializer.save()
         
+        # TODO: Move email sending to background task (Celery/RQ) to avoid worker timeout
         # Send confirmation email
-        try:
-            send_enrollment_confirmation_email(enrollment)
-        except Exception as e:
-            print(f"Erro ao enviar email de confirmação: {e}")
+        # try:
+        #     send_enrollment_confirmation_email(enrollment)
+        # except Exception as e:
+        #     print(f"Erro ao enviar email de confirmação: {e}")
         
         # Return full enrollment data
         response_serializer = EnrollmentSerializer(enrollment)

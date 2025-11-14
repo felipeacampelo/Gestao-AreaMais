@@ -181,24 +181,11 @@ export default function Enrollment() {
     }
 
     try {
-      // Check if user already has an active enrollment for this product
-      try {
-        const enrollmentsResponse = await getEnrollments();
-        const existingEnrollment = enrollmentsResponse.data.find(
-          (enrollment: any) => 
-            enrollment.product_name === selectedProduct.name &&
-            enrollment.status !== 'CANCELLED'
-        );
-        
-        if (existingEnrollment) {
-          setError('Você já possui uma inscrição ativa para este produto. Cada pessoa pode fazer apenas uma inscrição.');
-          setLoading(false);
-          return;
-        }
-      } catch (err) {
-        // If check fails, continue with creation (will be validated on backend)
-        console.error('Error checking existing enrollments:', err);
-      }
+      console.log('Creating enrollment with data:', {
+        product_id: selectedProduct.id,
+        batch_id: selectedProduct.active_batch.id,
+        has_coupon: couponApplied
+      });
 
       const response = await createEnrollment({
         product_id: selectedProduct.id,
@@ -207,10 +194,44 @@ export default function Enrollment() {
         coupon_code: couponApplied ? couponCode : undefined,
       });
 
+      console.log('Enrollment created successfully:', response);
+      console.log('Response data:', response.data);
+      
+      // Verificar se temos o ID da inscrição
+      if (!response.data || !response.data.id) {
+        console.error('Invalid response structure:', response);
+        setError('Inscrição criada, mas não foi possível obter o ID. Por favor, verifique em "Minhas Inscrições".');
+        setLoading(false);
+        return;
+      }
+
+      const enrollmentId = response.data.id;
+      console.log('Navigating to payment page with enrollment ID:', enrollmentId);
+      
       // Redirecionar para página de pagamento
-      navigate(`/payment/${response.data.id}`);
+      navigate(`/payment/${enrollmentId}`);
     } catch (err: any) {
-      setError(err.response?.data?.detail || err.response?.data?.form_data?.[0] || 'Erro ao criar inscrição');
+      console.error('Error creating enrollment:', err);
+      console.error('Error response:', err.response);
+      
+      // Extrair mensagem de erro mais específica
+      let errorMessage = 'Erro ao criar inscrição';
+      
+      if (err.response?.data) {
+        if (err.response.data.detail) {
+          errorMessage = err.response.data.detail;
+        } else if (err.response.data.form_data) {
+          errorMessage = Array.isArray(err.response.data.form_data) 
+            ? err.response.data.form_data[0] 
+            : err.response.data.form_data;
+        } else if (err.response.data.coupon_code) {
+          errorMessage = err.response.data.coupon_code;
+        } else if (typeof err.response.data === 'string') {
+          errorMessage = err.response.data;
+        }
+      }
+      
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

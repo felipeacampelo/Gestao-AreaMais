@@ -1,6 +1,7 @@
 """
 Enrollment serializers.
 """
+from decimal import Decimal
 from rest_framework import serializers
 from .models import Enrollment
 from apps.products.serializers import ProductSerializer, BatchSerializer
@@ -222,19 +223,23 @@ class EnrollmentCreateSerializer(serializers.Serializer):
             except Coupon.DoesNotExist:
                 raise serializers.ValidationError({'coupon_code': 'Cupom não encontrado'})
         
+        # Set default values for amounts (will be recalculated when payment method is chosen)
+        # Use the base price (PIX cash) as initial total_amount
+        initial_total = batch.price
+        
         enrollment = Enrollment.objects.create(
             user=user,
             product=product,
             batch=batch,
             coupon=coupon,
+            total_amount=initial_total,
+            discount_amount=Decimal('0.00'),
+            final_amount=initial_total,
             **validated_data
         )
         
-        # Calculate amounts (includes coupon discount)
-        enrollment.calculate_amounts()
-        
-        # Validate minimum purchase for coupon
-        if coupon and enrollment.total_amount < coupon.min_purchase:
+        # Validate minimum purchase for coupon (using base price)
+        if coupon and initial_total < coupon.min_purchase:
             enrollment.delete()
             raise serializers.ValidationError({
                 'coupon_code': f'Valor mínimo para este cupom é R$ {coupon.min_purchase}'
@@ -243,7 +248,6 @@ class EnrollmentCreateSerializer(serializers.Serializer):
         # Increment coupon usage
         if coupon:
             coupon.increment_uses()
-        enrollment.save()
         
         return enrollment
 

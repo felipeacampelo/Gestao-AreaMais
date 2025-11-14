@@ -278,7 +278,7 @@ export default function PaymentPage() {
                     <QrCode className="w-6 h-6 mr-3 flex-shrink-0" style={{ color: 'rgb(165, 44, 240)' }} />
                     <div>
                       <h3 className="font-semibold text-base sm:text-lg">PIX Parcelado</h3>
-                      <p className="text-xs sm:text-sm text-gray-600">Parcele em até 8x via PIX</p>
+                      <p className="text-xs sm:text-sm text-gray-600">Parcele em até 7x via PIX</p>
                     </div>
                   </div>
                   {enrollment && (
@@ -322,7 +322,7 @@ export default function PaymentPage() {
                     <CreditCardIcon className="w-6 h-6 mr-3 flex-shrink-0" style={{ color: 'rgb(165, 44, 240)' }} />
                     <div>
                       <h3 className="font-semibold text-base sm:text-lg">Cartão de Crédito</h3>
-                      <p className="text-xs sm:text-sm text-gray-600">Parcele em até 8x no cartão</p>
+                      <p className="text-xs sm:text-sm text-gray-600">Parcele em até 7x no cartão</p>
                     </div>
                   </div>
                   {enrollment && (

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, User, Phone, FileText, Calendar, CreditCard, Check, Ticket, X } from 'lucide-react';
 import { getProducts, getProduct, createEnrollment, getEnrollments, validateCoupon, type Product, type Enrollment } from '../services/api'; // getEnrollments used in handleSubmit
@@ -6,6 +6,7 @@ import ProgressSteps from '../components/ProgressSteps';
 
 export default function Enrollment() {
   const navigate = useNavigate();
+  const formRef = useRef<HTMLFormElement>(null);
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(false);
@@ -47,30 +48,7 @@ export default function Enrollment() {
   useEffect(() => {
     loadProducts();
     checkCompletedEnrollment();
-    checkExistingEnrollment();
   }, []);
-
-  const checkExistingEnrollment = async () => {
-    try {
-      const enrollmentsResponse = await getEnrollments();
-      const enrollmentsData = Array.isArray(enrollmentsResponse.data) 
-        ? enrollmentsResponse.data 
-        : (enrollmentsResponse.data as any).results || [];
-      
-      // Check if user has any active enrollment (PENDING_PAYMENT or PAID)
-      const activeEnrollment = enrollmentsData.find(
-        (enrollment: any) => enrollment.status === 'PENDING_PAYMENT' || enrollment.status === 'PAID'
-      );
-      
-      if (activeEnrollment) {
-        // Redirect to My Enrollments page
-        setError('Você já possui uma inscrição. Redirecionando para suas inscrições...');
-        setTimeout(() => navigate('/minhas-inscricoes'), 2000);
-      }
-    } catch (err) {
-      console.error('Error checking existing enrollment:', err);
-    }
-  };
 
   const checkCompletedEnrollment = async () => {
     try {
@@ -150,15 +128,7 @@ export default function Enrollment() {
     setCouponError('');
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // Check if refund policy was accepted
-    if (!refundPolicyAccepted) {
-      setShowRefundModal(true);
-      return;
-    }
-    
+  const processEnrollment = async () => {
     setLoading(true);
     setError('');
 
@@ -235,6 +205,18 @@ export default function Enrollment() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Check if refund policy was accepted
+    if (!refundPolicyAccepted) {
+      setShowRefundModal(true);
+      return;
+    }
+    
+    await processEnrollment();
   };
 
   // Show completed enrollment page if payment is confirmed
@@ -371,7 +353,7 @@ export default function Enrollment() {
           )}
 
           {/* Formulário */}
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 <User className="w-4 h-4 inline mr-2" />
@@ -720,14 +702,11 @@ export default function Enrollment() {
 
               <div className="mt-6 flex flex-col gap-3">
                 <button
-                  onClick={() => {
+                  onClick={async () => {
                     setRefundPolicyAccepted(true);
                     setShowRefundModal(false);
-                    // Trigger form submission after accepting
-                    const form = document.querySelector('form');
-                    if (form) {
-                      form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
-                    }
+                    // Process enrollment after accepting policy
+                    await processEnrollment();
                   }}
                   className="w-full py-3 px-6 rounded-lg font-semibold text-white transition-colors"
                   style={{ backgroundColor: 'rgb(165, 44, 240)' }}

@@ -89,7 +89,7 @@ class PaymentCreateSerializer(serializers.Serializer):
         credit_card_token = validated_data.get('credit_card_token')
         credit_card_data = validated_data.get('credit_card_data')
         
-        logger.info(f"Creating payment - Method: {payment_method}, Has token: {bool(credit_card_token)}, Has data: {bool(credit_card_data)}")
+        logger.info(f"Creating payment - Method: {payment_method}, Installments: {installments}, Has token: {bool(credit_card_token)}, Has data: {bool(credit_card_data)}")
         
         # Update enrollment with payment info and recalculate amounts
         enrollment.payment_method = payment_method

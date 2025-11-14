@@ -266,7 +266,10 @@ export default function PaymentPage() {
 
               {/* PIX Parcelado */}
               <div
-                onClick={() => setPaymentMethod('PIX_INSTALLMENT')}
+                onClick={() => {
+                  setPaymentMethod('PIX_INSTALLMENT');
+                  if (installments === 1) setInstallments(3); // Default to 3 installments
+                }}
                 className="border-2 rounded-lg p-4 sm:p-6 cursor-pointer transition-all"
                 style={{
                   borderColor: paymentMethod === 'PIX_INSTALLMENT' ? 'rgb(165, 44, 240)' : '#e5e7eb',
@@ -310,7 +313,10 @@ export default function PaymentPage() {
 
               {/* Cartão de Crédito */}
               <div
-                onClick={() => setPaymentMethod('CREDIT_CARD')}
+                onClick={() => {
+                  setPaymentMethod('CREDIT_CARD');
+                  if (installments === 1) setInstallments(3); // Default to 3 installments
+                }}
                 className="border-2 rounded-lg p-4 sm:p-6 cursor-pointer transition-all"
                 style={{
                   borderColor: paymentMethod === 'CREDIT_CARD' ? 'rgb(165, 44, 240)' : '#e5e7eb',

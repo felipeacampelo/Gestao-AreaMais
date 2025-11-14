@@ -18,6 +18,10 @@ export default function Enrollment() {
   const [couponDiscount, setCouponDiscount] = useState(0);
   const [couponError, setCouponError] = useState('');
   const [validatingCoupon, setValidatingCoupon] = useState(false);
+  
+  // Refund policy modal
+  const [showRefundModal, setShowRefundModal] = useState(false);
+  const [refundPolicyAccepted, setRefundPolicyAccepted] = useState(false);
 
   const steps = [
     { number: 1, title: 'Dados Pessoais', description: 'Informações básicas' },
@@ -148,6 +152,13 @@ export default function Enrollment() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Check if refund policy was accepted
+    if (!refundPolicyAccepted) {
+      setShowRefundModal(true);
+      return;
+    }
+    
     setLoading(true);
     setError('');
 
@@ -614,6 +625,105 @@ export default function Enrollment() {
           </form>
         </div>
       </div>
+
+      {/* Refund Policy Modal */}
+      {showRefundModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-6">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-2xl font-bold" style={{ color: 'rgb(165, 44, 240)' }}>
+                  Política de Reembolso
+                </h2>
+                <button
+                  onClick={() => setShowRefundModal(false)}
+                  className="text-gray-500 hover:text-gray-700"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="space-y-4 text-gray-700">
+                <p className="font-semibold text-lg">
+                  O jovem tem o direito de solicitar reembolso nas seguintes condições:
+                </p>
+
+                <p className="text-sm text-gray-600">
+                  A contar do primeiro dia de inscrição (15/11/25)
+                </p>
+
+                <div className="space-y-3 bg-gray-50 p-4 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-sm font-semibold">
+                      1
+                    </span>
+                    <p>
+                      O reembolso será concedido <strong>integralmente</strong>, com até <strong>120 dias</strong> antes do acampamento;
+                    </p>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-sm font-semibold">
+                      2
+                    </span>
+                    <p>
+                      O reembolso será de <strong>80% do valor pago</strong>, com até <strong>90 dias</strong> antes do acampamento;
+                    </p>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-sm font-semibold">
+                      3
+                    </span>
+                    <p>
+                      O reembolso será de <strong>40% do valor pago</strong>, com até <strong>60 dias</strong> antes do acampamento;
+                    </p>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <span className="flex-shrink-0 w-6 h-6 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center text-sm font-semibold">
+                      4
+                    </span>
+                    <p>
+                      O reembolso será de <strong>20% do valor pago</strong>, com até <strong>30 dias</strong> antes do acampamento.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                  <p className="text-red-800 font-semibold">
+                    Obs.: Não será concedido reembolso em caso de cancelamento ou desistência, após o prazo de trinta dias antes do acampamento.
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 flex flex-col gap-3">
+                <button
+                  onClick={() => {
+                    setRefundPolicyAccepted(true);
+                    setShowRefundModal(false);
+                    // Trigger form submission after accepting
+                    const form = document.querySelector('form');
+                    if (form) {
+                      form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
+                    }
+                  }}
+                  className="w-full py-3 px-6 rounded-lg font-semibold text-white transition-colors"
+                  style={{ backgroundColor: 'rgb(165, 44, 240)' }}
+                >
+                  Aceito os Termos de Reembolso
+                </button>
+                <button
+                  onClick={() => setShowRefundModal(false)}
+                  className="w-full py-3 px-6 bg-gray-200 hover:bg-gray-300 rounded-lg font-semibold text-gray-700 transition-colors"
+                >
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

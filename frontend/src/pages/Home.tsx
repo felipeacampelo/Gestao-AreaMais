@@ -179,23 +179,36 @@ export default function Home() {
       {/* Info Section */}
       <section id="detalhes" className="py-16 bg-white">
         <div className="container mx-auto px-4">
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8">
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4" style={{ backgroundColor: 'rgba(165, 44, 240, 0.1)' }}>
-                <Calendar className="w-8 h-8" style={{ color: 'rgb(165, 44, 240)' }} />
+          <div className="max-w-4xl mx-auto">
+            <div className="grid md:grid-cols-2 gap-8 md:gap-12">
+              {/* Data */}
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-full" style={{ backgroundColor: 'rgb(165, 44, 240)' }}>
+                    <Calendar className="w-7 h-7 text-white" />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold mb-1" style={{ color: 'rgb(165, 44, 240)' }}>Data do Evento</h3>
+                  <p className="text-2xl font-bold text-gray-900">26 a 28 de Junho</p>
+                  <p className="text-sm text-gray-600 mt-1"></p>
+                </div>
               </div>
-              <h3 className="text-xl font-semibold mb-2">Data</h3>
-              <p className="text-gray-600">26 a 28 de Junho</p>
-            </div>
 
-            <div className="text-center">
-              <div className="inline-flex items-center justify-center w-16 h-16 rounded-full mb-4" style={{ backgroundColor: 'rgba(165, 44, 240, 0.1)' }}>
-                <MapPin className="w-8 h-8" style={{ color: 'rgb(165, 44, 240)' }} />
+              {/* Local */}
+              <div className="flex items-start gap-4">
+                <div className="flex-shrink-0">
+                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-full" style={{ backgroundColor: 'rgb(165, 44, 240)' }}>
+                    <MapPin className="w-7 h-7 text-white" />
+                  </div>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-lg font-semibold mb-1" style={{ color: 'rgb(165, 44, 240)' }}>Local do Evento</h3>
+                  <p className="text-2xl font-bold text-gray-900">Acampamento El Rancho</p>
+                  <p className="text-sm text-gray-600 mt-1"></p>
+                </div>
               </div>
-              <h3 className="text-xl font-semibold mb-2">Local</h3>
-              <p className="text-gray-600">Acampamento El Rancho</p>
             </div>
-
           </div>
         </div>
       </section>

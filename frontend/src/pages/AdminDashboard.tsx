@@ -163,7 +163,7 @@ export default function AdminDashboard() {
               Exportar CSV
             </button>
             <a
-              href="http://localhost:8000/admin"
+              href="https://gestao-areamais-production.up.railway.app/admin"
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 px-4 py-2 rounded-lg transition-colors"

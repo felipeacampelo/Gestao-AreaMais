@@ -209,15 +209,12 @@ export default function Home() {
             </h2>
             <p className="text-lg text-gray-700 mb-6">
               As ruas estão cheias de pessoas alegres, bandeiras são levantadas e hinos são entoados. 
-              Estão todos em festa, mas, falta algo. 
+              Estão todos em festa, mas falta algo. 
               Todos tem um sorriso no rosto, mas enxergo corações vazios, sozinhos, em busca de um propósito maior.
             </p>
             <p className="text-lg text-gray-700">
-              Em 2026, iremos pelas ruas levantar a bandeira, gritando a verdade que é Cristo. So ele é a esperança verdadeira.  
-              Vamos fazer parte disso?
-
-              <h2 className="text-3xl md:text-4xl font-bold mb-6">
-              </h2>
+              Em 2026, iremos pelas ruas levantar a bandeira, gritando a verdade que é Cristo. Só Ele é a esperança verdadeira.  
+              Vamos fazer parte disso? 
             </p>
           </div>
         </div>
@@ -294,7 +291,7 @@ export default function Home() {
       <footer className="bg-gray-900 text-white py-8">
         <div className="container mx-auto px-4 text-center">
           <p className="text-gray-400">
-            © 2025 Área Mais | Igreja Batista Capital
+            © 2025 Área Mais | IGREJA BATISTA CAPITAL®
           </p>
         </div>
       </footer>

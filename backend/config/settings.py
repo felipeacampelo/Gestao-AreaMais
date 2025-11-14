@@ -140,6 +140,11 @@ CORS_ALLOWED_ORIGINS = [
     'http://localhost:5174',
     'http://127.0.0.1:5174',
 ]
+
+# Add origins from environment variable (Railway)
+if os.getenv('CORS_ALLOWED_ORIGINS'):
+    env_origins = os.getenv('CORS_ALLOWED_ORIGINS').split(',')
+    CORS_ALLOWED_ORIGINS.extend([origin.strip() for origin in env_origins if origin.strip() not in CORS_ALLOWED_ORIGINS])
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_METHODS = [
     'DELETE',

@@ -189,8 +189,8 @@ export default function Home() {
                   </div>
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold mb-1" style={{ color: 'rgb(165, 44, 240)' }}>Data do Evento</h3>
-                  <p className="text-2xl font-bold text-gray-900">26 a 28 de Junho</p>
+                  <h3 className="text-lg font-semibold mb-1" style={{ color: 'rgb(165, 44, 240)' }}>Data</h3>
+                  <p className="text-2xl font-bold text-gray-900">13, 20, 26 a 28 de junho e 04 de julho</p>
                   <p className="text-sm text-gray-600 mt-1"></p>
                 </div>
               </div>
@@ -203,7 +203,7 @@ export default function Home() {
                   </div>
                 </div>
                 <div className="flex-1">
-                  <h3 className="text-lg font-semibold mb-1" style={{ color: 'rgb(165, 44, 240)' }}>Local do Evento</h3>
+                  <h3 className="text-lg font-semibold mb-1" style={{ color: 'rgb(165, 44, 240)' }}>Local</h3>
                   <p className="text-2xl font-bold text-gray-900">Acampamento El Rancho</p>
                   <p className="text-sm text-gray-600 mt-1"></p>
                 </div>
@@ -216,19 +216,50 @@ export default function Home() {
       {/* About Section */}
       <section className="py-16 bg-gray-50">
         <div className="container mx-auto px-4">
-          <div className="max-w-3xl mx-auto text-center">
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">
+          <div className="max-w-4xl mx-auto">
+            <h2 className="text-3xl md:text-4xl font-bold mb-8 text-center">
               ACAMPAMENTO A+ 2026
             </h2>
-            <p className="text-lg text-gray-700 mb-6">
-              As ruas estão cheias de pessoas alegres, bandeiras são levantadas e hinos são entoados. 
-              Estão todos em festa, mas falta algo. 
-              Todos tem um sorriso no rosto, mas enxergo corações vazios, sozinhos, em busca de um propósito maior.
-            </p>
-            <p className="text-lg text-gray-700">
-              Em 2026, iremos pelas ruas levantar a bandeira, gritando a verdade que é Cristo. Só Ele é a esperança verdadeira.  
-              Vamos fazer parte disso? 
-            </p>
+            
+            <div className="space-y-6 text-left">
+              <p className="text-lg text-gray-700 leading-relaxed">
+                As ruas estão cheias de pessoas alegres, bandeiras são levantadas e hinos são entoados. Estão todos em festa, mas falta algo.
+              </p>
+              
+              <p className="text-lg text-gray-700 leading-relaxed">
+                Todos tem um sorriso no rosto, mas enxergo corações vazios, sozinhos, em busca de um propósito maior.
+              </p>
+              
+              <p className="text-lg text-gray-700 leading-relaxed">
+                Em 2026 iremos pelas ruas levantar a bandeira, gritando a verdade que é Cristo. So ele é a esperança verdadeira. Vamos fazer parte disso?
+              </p>
+              
+              <div className="bg-white rounded-lg p-6 shadow-sm border-l-4" style={{ borderColor: 'rgb(165, 44, 240)' }}>
+                <h3 className="text-xl font-bold mb-4" style={{ color: 'rgb(165, 44, 240)' }}>Programação:</h3>
+                
+                <div className="space-y-3">
+                  <p className="text-gray-700">
+                    <span className="font-semibold">13.06</span> - Iniciaremos nosso acampamento com o nosso pré madruga entre os nossos PG's.
+                  </p>
+                  
+                  <p className="text-gray-700">
+                    <span className="font-semibold">20.06</span> - Um sábado inteiro de conferência Pelas Ruas | Pré acamps com alguns convidados.
+                  </p>
+                  
+                  <p className="text-gray-700">
+                    <span className="font-semibold">26 a 28.06</span> - Nosso tradicional EL RANCHO, como você já conhece. Se não conhece, aumente sua expectativa.
+                  </p>
+                  
+                  <p className="text-gray-700">
+                    <span className="font-semibold">04.07</span> - Iremos pelas ruas de Brasília levantando a bandeira e gritando a verdade que Cristo é o Senhor!
+                  </p>
+                </div>
+              </div>
+              
+              <p className="text-xl text-center font-bold mt-8" style={{ color: 'rgb(165, 44, 240)' }}>
+                Garanta sua inscrição pra não ficar de fora de nada da nossa programação!
+              </p>
+            </div>
           </div>
         </div>
       </section>

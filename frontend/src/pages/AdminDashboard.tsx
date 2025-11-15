@@ -310,6 +310,7 @@ export default function AdminDashboard() {
                   <th className="text-left py-3 px-4 font-semibold">Camiseta</th>
                   <th className="text-left py-3 px-4 font-semibold">Líder PG</th>
                   <th className="text-left py-3 px-4 font-semibold">Status</th>
+                  <th className="text-left py-3 px-4 font-semibold">Pagamento</th>
                   <th className="text-left py-3 px-4 font-semibold">Valor</th>
                   <th className="text-left py-3 px-4 font-semibold">Ações</th>
                 </tr>
@@ -343,6 +344,21 @@ export default function AdminDashboard() {
                          enrollment.status === 'PENDING_PAYMENT' ? '⏳ Pendente' : 
                          enrollment.status}
                       </span>
+                    </td>
+                    <td className="py-3 px-4">
+                      {enrollment.payment_method === 'PIX_INSTALLMENT' && enrollment.payments ? (
+                        <div className="text-sm">
+                          <span className="font-medium">
+                            {enrollment.payments.filter((p: any) => p.status === 'CONFIRMED' || p.status === 'RECEIVED').length}/{enrollment.payments.length}
+                          </span>
+                          <span className="text-gray-500 ml-1">parcelas</span>
+                        </div>
+                      ) : (
+                        <span className="text-sm text-gray-500">
+                          {enrollment.payment_method === 'PIX_CASH' ? 'PIX à Vista' : 
+                           enrollment.payment_method === 'CREDIT_CARD' ? 'Cartão' : '-'}
+                        </span>
+                      )}
                     </td>
                     <td className="py-3 px-4 font-medium">R$ {enrollment.final_amount}</td>
                     <td className="py-3 px-4">
@@ -464,10 +480,19 @@ export default function AdminDashboard() {
                           {!selectedEnrollment.payment_method && '-'}
                         </p>
                       </div>
-                      <div>
-                        <label className="text-sm text-gray-600">Parcelas</label>
-                        <p className="font-medium">{selectedEnrollment.installments || 1}x</p>
-                      </div>
+                      {selectedEnrollment.payment_method === 'PIX_INSTALLMENT' && selectedEnrollment.payments ? (
+                        <div>
+                          <label className="text-sm text-gray-600">Parcelas Pagas</label>
+                          <p className="font-medium">
+                            {selectedEnrollment.payments.filter((p: any) => p.status === 'CONFIRMED' || p.status === 'RECEIVED').length} de {selectedEnrollment.payments.length}
+                          </p>
+                        </div>
+                      ) : (
+                        <div>
+                          <label className="text-sm text-gray-600">Parcelas</label>
+                          <p className="font-medium">{selectedEnrollment.installments || 1}x</p>
+                        </div>
+                      )}
                       <div>
                         <label className="text-sm text-gray-600">Valor Total</label>
                         <p className="font-medium">R$ {selectedEnrollment.total_amount}</p>
@@ -500,6 +525,48 @@ export default function AdminDashboard() {
                         Observações
                       </h3>
                       <p className="text-gray-700">{selectedEnrollment.form_data.observacoes}</p>
+                    </div>
+                  )}
+
+                  {/* Detalhes das Parcelas - PIX Parcelado */}
+                  {selectedEnrollment.payment_method === 'PIX_INSTALLMENT' && selectedEnrollment.payments && selectedEnrollment.payments.length > 0 && (
+                    <div>
+                      <h3 className="text-lg font-semibold mb-3" style={{ color: 'rgb(165, 44, 240)' }}>
+                        Detalhes das Parcelas
+                      </h3>
+                      <div className="space-y-2">
+                        {selectedEnrollment.payments.map((payment: any) => (
+                          <div 
+                            key={payment.id} 
+                            className="flex items-center justify-between p-3 rounded-lg border"
+                            style={{
+                              backgroundColor: payment.status === 'CONFIRMED' || payment.status === 'RECEIVED' 
+                                ? 'rgba(34, 197, 94, 0.1)' 
+                                : 'rgba(234, 179, 8, 0.1)',
+                              borderColor: payment.status === 'CONFIRMED' || payment.status === 'RECEIVED'
+                                ? 'rgba(34, 197, 94, 0.3)'
+                                : 'rgba(234, 179, 8, 0.3)'
+                            }}
+                          >
+                            <div>
+                              <p className="font-medium">Parcela {payment.installment_number}</p>
+                              <p className="text-sm text-gray-600">
+                                Vencimento: {new Date(payment.due_date).toLocaleDateString('pt-BR')}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              <p className="font-medium">R$ {payment.amount}</p>
+                              <p className="text-sm">
+                                {payment.status === 'CONFIRMED' || payment.status === 'RECEIVED' ? (
+                                  <span className="text-green-600 font-medium">✓ Paga</span>
+                                ) : (
+                                  <span className="text-yellow-600 font-medium">⏳ Pendente</span>
+                                )}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     </div>
                   )}
 

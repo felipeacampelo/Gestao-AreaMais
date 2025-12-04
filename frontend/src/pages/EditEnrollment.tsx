@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, User, Phone, Calendar, CreditCard } from 'lucide-react';
-import { getEnrollment, updateEnrollment } from '../services/api';
+import { ArrowLeft, User, Phone, Calendar, CreditCard, Ticket, Check, X } from 'lucide-react';
+import { getEnrollment, updateEnrollment, validateCoupon, type Enrollment } from '../services/api';
 
 export default function EditEnrollment() {
   const navigate = useNavigate();
@@ -9,6 +9,15 @@ export default function EditEnrollment() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [enrollment, setEnrollment] = useState<Enrollment | null>(null);
+  
+  // Coupon states
+  const [couponCode, setCouponCode] = useState('');
+  const [couponApplied, setCouponApplied] = useState(false);
+  const [couponDiscount, setCouponDiscount] = useState(0);
+  const [couponError, setCouponError] = useState('');
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+  const [hasCoupon, setHasCoupon] = useState(false);
   
   const [formData, setFormData] = useState({
     nome_completo: '',
@@ -32,23 +41,30 @@ export default function EditEnrollment() {
   const loadEnrollment = async () => {
     try {
       const response = await getEnrollment(Number(id));
-      const enrollment = response.data;
+      const enrollmentData = response.data;
+      setEnrollment(enrollmentData);
+      
+      // Check if enrollment already has a coupon
+      if (enrollmentData.discount_amount && parseFloat(enrollmentData.discount_amount) > 0) {
+        setHasCoupon(true);
+        setCouponDiscount(parseFloat(enrollmentData.discount_amount));
+      }
       
       // Preencher formulário com dados existentes
-      if (enrollment.form_data) {
+      if (enrollmentData.form_data) {
         setFormData({
-          nome_completo: enrollment.form_data.nome_completo || '',
-          email: enrollment.form_data.email || '',
-          telefone: enrollment.form_data.telefone || '',
-          data_nascimento: enrollment.form_data.data_nascimento || '',
-          cpf: enrollment.form_data.cpf || '',
-          rg: enrollment.form_data.rg || '',
-          cep: enrollment.form_data.cep || '',
-          tamanho_camiseta: enrollment.form_data.tamanho_camiseta || '',
-          membro_batista_capital: enrollment.form_data.membro_batista_capital || '',
-          igreja: enrollment.form_data.igreja || '',
-          lider_pg: enrollment.form_data.lider_pg || '',
-          observacoes: enrollment.form_data.observacoes || '',
+          nome_completo: enrollmentData.form_data.nome_completo || '',
+          email: enrollmentData.form_data.email || '',
+          telefone: enrollmentData.form_data.telefone || '',
+          data_nascimento: enrollmentData.form_data.data_nascimento || '',
+          cpf: enrollmentData.form_data.cpf || '',
+          rg: enrollmentData.form_data.rg || '',
+          cep: enrollmentData.form_data.cep || '',
+          tamanho_camiseta: enrollmentData.form_data.tamanho_camiseta || '',
+          membro_batista_capital: enrollmentData.form_data.membro_batista_capital || '',
+          igreja: enrollmentData.form_data.igreja || '',
+          lider_pg: enrollmentData.form_data.lider_pg || '',
+          observacoes: enrollmentData.form_data.observacoes || '',
         });
       }
       
@@ -60,6 +76,48 @@ export default function EditEnrollment() {
     }
   };
 
+  const handleApplyCoupon = async () => {
+    if (!couponCode.trim()) {
+      setCouponError('Digite um código de cupom');
+      return;
+    }
+
+    if (!enrollment || !enrollment.product) {
+      setCouponError('Erro ao carregar dados da inscrição');
+      return;
+    }
+
+    setValidatingCoupon(true);
+    setCouponError('');
+
+    try {
+      const baseAmount = parseFloat(String(enrollment.batch?.price || enrollment.total_amount || 0));
+      
+      const response = await validateCoupon({
+        code: couponCode.trim().toUpperCase(),
+        product_id: enrollment.product.id,
+        amount: baseAmount
+      });
+
+      setCouponApplied(true);
+      setCouponDiscount(response.data.discount_amount);
+      setCouponError('');
+    } catch (err: any) {
+      setCouponError(err.response?.data?.error || 'Cupom inválido');
+      setCouponApplied(false);
+      setCouponDiscount(0);
+    } finally {
+      setValidatingCoupon(false);
+    }
+  };
+
+  const handleRemoveCoupon = () => {
+    setCouponCode('');
+    setCouponApplied(false);
+    setCouponDiscount(0);
+    setCouponError('');
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
@@ -67,7 +125,14 @@ export default function EditEnrollment() {
     setLoading(true);
 
     try {
-      await updateEnrollment(Number(id), { form_data: formData });
+      const updateData: any = { form_data: formData };
+      
+      // Add coupon if applied
+      if (couponApplied && couponCode) {
+        updateData.coupon_code = couponCode.trim().toUpperCase();
+      }
+      
+      await updateEnrollment(Number(id), updateData);
       setSuccess('Dados atualizados com sucesso!');
       setTimeout(() => navigate('/minhas-inscricoes'), 2000);
     } catch (err: any) {
@@ -299,6 +364,82 @@ export default function EditEnrollment() {
                 />
               </div>
             </div>
+
+            {/* Cupom de Desconto */}
+            {!hasCoupon && (
+              <div className="border-t pt-6">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  <Ticket className="w-4 h-4 inline mr-2" />
+                  Tem um cupom de desconto?
+                </label>
+                
+                {!couponApplied ? (
+                  <div className="flex gap-3">
+                    <input
+                      type="text"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                      placeholder="Digite o código do cupom"
+                      className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-600 focus:border-transparent text-gray-900 bg-white uppercase"
+                      disabled={validatingCoupon}
+                    />
+                    <button
+                      type="button"
+                      onClick={handleApplyCoupon}
+                      disabled={validatingCoupon || !couponCode.trim()}
+                      className="px-6 py-3 bg-purple-600 text-white rounded-lg font-medium hover:bg-purple-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {validatingCoupon ? 'Validando...' : 'Aplicar'}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="bg-green-50 border-2 border-green-500 rounded-lg p-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Check className="w-5 h-5 text-green-600" />
+                        <div>
+                          <p className="font-medium text-green-900">Cupom aplicado!</p>
+                          <p className="text-sm text-green-700">
+                            Código: <span className="font-mono font-bold">{couponCode}</span>
+                          </p>
+                          <p className="text-sm text-green-700">
+                            Desconto: <span className="font-bold">R$ {couponDiscount.toFixed(2)}</span>
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleRemoveCoupon}
+                        className="p-2 text-green-600 hover:bg-green-100 rounded-lg transition-colors"
+                        title="Remover cupom"
+                      >
+                        <X className="w-5 h-5" />
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                {couponError && (
+                  <p className="mt-2 text-sm text-red-600">{couponError}</p>
+                )}
+              </div>
+            )}
+
+            {hasCoupon && (
+              <div className="border-t pt-6">
+                <div className="bg-green-50 border-2 border-green-500 rounded-lg p-4">
+                  <div className="flex items-center gap-3">
+                    <Check className="w-5 h-5 text-green-600" />
+                    <div>
+                      <p className="font-medium text-green-900">Cupom já aplicado nesta inscrição</p>
+                      <p className="text-sm text-green-700">
+                        Desconto: <span className="font-bold">R$ {couponDiscount.toFixed(2)}</span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="flex gap-4">
               <button

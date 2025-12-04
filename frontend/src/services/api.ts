@@ -77,6 +77,7 @@ export interface Enrollment {
   status: string;
   payment_method?: string | null;
   installments?: number;
+  max_installments?: number;
   total_amount?: string;
   discount_amount?: string;
   final_amount: string;
@@ -131,7 +132,7 @@ export const getEnrollments = () => api.get<Enrollment[]>('/enrollments/');
 export const getEnrollment = (id: number) =>
   api.get<Enrollment>(`/enrollments/${id}/`);
 
-export const updateEnrollment = (id: number, data: { form_data: any }) =>
+export const updateEnrollment = (id: number, data: { form_data: any; coupon_code?: string }) =>
   api.patch<Enrollment>(`/enrollments/${id}/`, data);
 
 // Payments

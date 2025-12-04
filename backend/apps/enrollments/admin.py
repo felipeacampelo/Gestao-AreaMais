@@ -179,6 +179,10 @@ class CouponAdmin(admin.ModelAdmin):
         (_('Desconto'), {
             'fields': ('discount_type', 'discount_value', 'max_discount')
         }),
+        (_('Parcelamento'), {
+            'fields': ('enable_12x_installments',),
+            'description': 'Permite parcelamento em até 10x (padrão é 7x)'
+        }),
         (_('Restrições'), {
             'fields': ('min_purchase', 'max_uses', 'uses_count', 'products')
         }),

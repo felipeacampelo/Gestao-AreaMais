@@ -28,10 +28,19 @@ export default function PaymentPage() {
   const [installments, setInstallments] = useState(1);
   const [showCardForm, setShowCardForm] = useState(false);
   
-  // Calculate prices based on batch
-  const pixCashPrice = enrollment?.batch?.price ? parseFloat(String(enrollment.batch.price)) : 0;
-  const pixInstallmentPrice = enrollment?.batch?.pix_installment_price ? parseFloat(String(enrollment.batch.pix_installment_price)) : 0;
-  const creditCardPrice = enrollment?.batch?.credit_card_price ? parseFloat(String(enrollment.batch.credit_card_price)) : 0;
+  // Calculate prices based on batch and discount
+  const batchPixCashPrice = enrollment?.batch?.price ? parseFloat(String(enrollment.batch.price)) : 0;
+  const batchPixInstallmentPrice = enrollment?.batch?.pix_installment_price ? parseFloat(String(enrollment.batch.pix_installment_price)) : 0;
+  const batchCreditCardPrice = enrollment?.batch?.credit_card_price ? parseFloat(String(enrollment.batch.credit_card_price)) : 0;
+  
+  // Get discount amount from enrollment
+  const discountAmount = enrollment?.discount_amount ? parseFloat(String(enrollment.discount_amount)) : 0;
+  const hasDiscount = discountAmount > 0;
+  
+  // Apply discount to each payment method price
+  const pixCashPrice = Math.max(0, batchPixCashPrice - discountAmount);
+  const pixInstallmentPrice = Math.max(0, batchPixInstallmentPrice - discountAmount);
+  const creditCardPrice = Math.max(0, batchCreditCardPrice - discountAmount);
 
   const steps = [
     { number: 1, title: 'Dados Pessoais', description: 'Informações básicas' },
@@ -224,9 +233,24 @@ export default function PaymentPage() {
                     <span className="text-gray-600">Produto:</span>
                     <span className="font-semibold mt-1 sm:mt-0">{enrollment.product?.name}</span>
                   </div>
+                  {hasDiscount && (
+                    <>
+                      <div className="flex flex-col sm:flex-row sm:justify-between">
+                        <span className="text-gray-600">Valor Original:</span>
+                        <span className="font-semibold mt-1 sm:mt-0 line-through text-gray-400">R$ {batchPixCashPrice.toFixed(2)}</span>
+                      </div>
+                      <div className="flex flex-col sm:flex-row sm:justify-between">
+                        <span className="text-gray-600">Desconto do Cupom:</span>
+                        <span className="font-semibold mt-1 sm:mt-0 text-green-600">- R$ {discountAmount.toFixed(2)}</span>
+                      </div>
+                    </>
+                  )}
                   <div className="flex flex-col sm:flex-row sm:justify-between">
-                    <span className="text-gray-600">Valor Total:</span>
-                    <span className="font-semibold mt-1 sm:mt-0">R$ {parseFloat(enrollment.final_amount || '0').toFixed(2)}</span>
+                    <span className="text-gray-600">{hasDiscount ? 'Valor com Desconto:' : 'Valor Total:'}</span>
+                    <span className="font-semibold mt-1 sm:mt-0">
+                      R$ {parseFloat(enrollment.final_amount || '0').toFixed(2)}
+                      {hasDiscount && <span className="ml-2 text-xs text-green-600 font-normal">(cupom aplicado)</span>}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -256,6 +280,11 @@ export default function PaymentPage() {
                   </div>
                   {enrollment && (
                     <div className="text-left sm:text-right">
+                      {hasDiscount && (
+                        <div className="text-sm text-gray-400 line-through">
+                          R$ {batchPixCashPrice.toFixed(2)}
+                        </div>
+                      )}
                       <div className="text-xl sm:text-2xl font-bold text-gray-900">
                         R$ {pixCashPrice.toFixed(2)}
                       </div>
@@ -281,12 +310,19 @@ export default function PaymentPage() {
                     <QrCode className="w-6 h-6 mr-3 flex-shrink-0" style={{ color: 'rgb(165, 44, 240)' }} />
                     <div>
                       <h3 className="font-semibold text-base sm:text-lg">PIX Parcelado</h3>
-                      <p className="text-xs sm:text-sm text-gray-600">Parcele em até 7x via PIX</p>
+                      <p className="text-xs sm:text-sm text-gray-600">Parcele em até {enrollment?.max_installments || 7}x via PIX</p>
                     </div>
                   </div>
                   {enrollment && (
-                    <div className="text-xl sm:text-2xl font-bold text-gray-900">
-                      R$ {pixInstallmentPrice.toFixed(2)}
+                    <div className="text-right">
+                      {hasDiscount && (
+                        <div className="text-sm text-gray-400 line-through">
+                          R$ {batchPixInstallmentPrice.toFixed(2)}
+                        </div>
+                      )}
+                      <div className="text-xl sm:text-2xl font-bold text-gray-900">
+                        R$ {pixInstallmentPrice.toFixed(2)}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -301,7 +337,7 @@ export default function PaymentPage() {
                       onChange={(e) => setInstallments(Number(e.target.value))}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple text-gray-900 bg-white"
                     >
-                      {[2, 3, 4, 5, 6, 7].map((num) => (
+                      {Array.from({ length: (enrollment?.max_installments || 7) - 1 }, (_, i) => i + 2).map((num) => (
                         <option key={num} value={num}>
                           {num}x de R$ {(pixInstallmentPrice / num).toFixed(2)}
                         </option>
@@ -328,12 +364,19 @@ export default function PaymentPage() {
                     <CreditCardIcon className="w-6 h-6 mr-3 flex-shrink-0" style={{ color: 'rgb(165, 44, 240)' }} />
                     <div>
                       <h3 className="font-semibold text-base sm:text-lg">Cartão de Crédito</h3>
-                      <p className="text-xs sm:text-sm text-gray-600">Parcele em até 7x no cartão</p>
+                      <p className="text-xs sm:text-sm text-gray-600">Parcele em até {enrollment?.max_installments || 7}x no cartão</p>
                     </div>
                   </div>
                   {enrollment && (
-                    <div className="text-xl sm:text-2xl font-bold text-gray-900">
-                      R$ {creditCardPrice.toFixed(2)}
+                    <div className="text-right">
+                      {hasDiscount && (
+                        <div className="text-sm text-gray-400 line-through">
+                          R$ {batchCreditCardPrice.toFixed(2)}
+                        </div>
+                      )}
+                      <div className="text-xl sm:text-2xl font-bold text-gray-900">
+                        R$ {creditCardPrice.toFixed(2)}
+                      </div>
                     </div>
                   )}
                 </div>
@@ -349,7 +392,7 @@ export default function PaymentPage() {
                         onChange={(e) => setInstallments(Number(e.target.value))}
                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent appearance-none bg-white text-gray-900"
                       >
-                        {[1, 2, 3, 4, 5, 6, 7].map((num) => (
+                        {Array.from({ length: enrollment?.max_installments || 7 }, (_, i) => i + 1).map((num) => (
                           <option key={num} value={num}>
                             {num}x de R$ {(creditCardPrice / num).toFixed(2)}
                           </option>

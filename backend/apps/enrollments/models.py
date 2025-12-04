@@ -265,9 +265,9 @@ class Coupon(models.Model):
     )
     
     enable_12x_installments = models.BooleanField(
-        default=False,
-        verbose_name='Habilitar 12x',
-        help_text='Permite parcelamento em até 12x (padrão é 7x)'
+        default=True,
+        verbose_name='Habilitar 10x',
+        help_text='Permite parcelamento em até 10x (padrão é 7x)'
     )
     
     # Restrições

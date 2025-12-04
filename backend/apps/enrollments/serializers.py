@@ -227,23 +227,28 @@ class EnrollmentCreateSerializer(serializers.Serializer):
         # Use the base price (PIX cash) as initial total_amount
         initial_total = batch.price
         
+        # Calculate discount if coupon exists
+        discount_amount = Decimal('0.00')
+        if coupon:
+            # Validate minimum purchase first
+            if initial_total < coupon.min_purchase:
+                raise serializers.ValidationError({
+                    'coupon_code': f'Valor mínimo para este cupom é R$ {coupon.min_purchase}'
+                })
+            discount_amount = Decimal(str(coupon.calculate_discount(initial_total)))
+        
+        final_amount = initial_total - discount_amount
+        
         enrollment = Enrollment.objects.create(
             user=user,
             product=product,
             batch=batch,
             coupon=coupon,
             total_amount=initial_total,
-            discount_amount=Decimal('0.00'),
-            final_amount=initial_total,
+            discount_amount=discount_amount,
+            final_amount=final_amount,
             **validated_data
         )
-        
-        # Validate minimum purchase for coupon (using base price)
-        if coupon and initial_total < coupon.min_purchase:
-            enrollment.delete()
-            raise serializers.ValidationError({
-                'coupon_code': f'Valor mínimo para este cupom é R$ {coupon.min_purchase}'
-            })
         
         # Increment coupon usage
         if coupon:

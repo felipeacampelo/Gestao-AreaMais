@@ -25,7 +25,7 @@ class EnrollmentSerializer(serializers.ModelSerializer):
         """Get max installments based on coupon."""
         if obj.coupon and obj.coupon.enable_12x_installments:
             return 10
-        return 7
+        return 6
     
     def get_payments(self, obj):
         """Get payments for this enrollment."""

@@ -310,7 +310,7 @@ export default function PaymentPage() {
                     <QrCode className="w-6 h-6 mr-3 flex-shrink-0" style={{ color: 'rgb(165, 44, 240)' }} />
                     <div>
                       <h3 className="font-semibold text-base sm:text-lg">PIX Parcelado</h3>
-                      <p className="text-xs sm:text-sm text-gray-600">Parcele em até {enrollment?.max_installments || 7}x via PIX</p>
+                      <p className="text-xs sm:text-sm text-gray-600">Parcele em até {enrollment?.max_installments || 6}x via PIX</p>
                     </div>
                   </div>
                   {enrollment && (
@@ -337,7 +337,7 @@ export default function PaymentPage() {
                       onChange={(e) => setInstallments(Number(e.target.value))}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple text-gray-900 bg-white"
                     >
-                      {Array.from({ length: (enrollment?.max_installments || 7) - 1 }, (_, i) => i + 2).map((num) => (
+                      {Array.from({ length: (enrollment?.max_installments || 6) - 1 }, (_, i) => i + 2).map((num) => (
                         <option key={num} value={num}>
                           {num}x de R$ {(pixInstallmentPrice / num).toFixed(2)}
                         </option>

@@ -50,7 +50,7 @@ export default function Home() {
   const creditCardPrice = activeBatch?.credit_card_price 
     ? parseFloat(String(activeBatch.credit_card_price))
     : 1100;
-  const maxInstallments = 7; // Padrão 7x, cupons especiais podem habilitar 12x
+  const maxInstallments = 6; // Padrão 6x, cupons especiais podem habilitar 10x
   const pixInstallmentValue = (pixInstallmentPrice / maxInstallments).toFixed(2);
   const creditCardInstallmentValue = (creditCardPrice / maxInstallments).toFixed(2);
 
@@ -302,7 +302,7 @@ export default function Home() {
                   R$ {pixInstallmentPrice.toFixed(2)}
                 </div>
                 <p className="text-gray-600 mb-6">
-                  Até 7x de R$ {pixInstallmentValue}<br/>
+                  Até 6x de R$ {pixInstallmentValue}<br/>
                   via PIX
                 </p>
                 <button onClick={() => navigate('/inscricao')} className="btn-primary w-full">
@@ -319,7 +319,7 @@ export default function Home() {
                   R$ {creditCardPrice.toFixed(2)}
                 </div>
                 <p className="text-gray-600 mb-6">
-                  Até 7x de R$ {creditCardInstallmentValue}<br/>
+                  Até 6x de R$ {creditCardInstallmentValue}<br/>
                   no cartão
                 </p>
                 <button onClick={() => navigate('/inscricao')} className="btn-primary w-full">

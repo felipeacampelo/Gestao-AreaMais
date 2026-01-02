@@ -58,7 +58,10 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
         )
     
     def update(self, request, *args, **kwargs):
-        """Update enrollment form_data."""
+        """Update enrollment form_data and optionally apply coupon."""
+        from decimal import Decimal
+        from .models import Coupon
+        
         enrollment = self.get_object()
         
         # Only allow updating if no payments have been made
@@ -71,7 +74,51 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
         # Update form_data
         if 'form_data' in request.data:
             enrollment.form_data.update(request.data['form_data'])
-            enrollment.save()
+        
+        # Apply coupon if provided and enrollment doesn't have one yet
+        if 'coupon_code' in request.data and not enrollment.coupon:
+            coupon_code = request.data['coupon_code']
+            try:
+                coupon = Coupon.objects.get(code=coupon_code.strip().upper())
+                
+                # Validate coupon
+                is_valid, message = coupon.is_valid()
+                if not is_valid:
+                    return Response(
+                        {'detail': message},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Check product restriction
+                if not coupon.can_apply_to_product(enrollment.product):
+                    return Response(
+                        {'detail': 'Este cupom não é válido para este produto'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Check minimum purchase
+                if enrollment.total_amount < coupon.min_purchase:
+                    return Response(
+                        {'detail': f'Valor mínimo para este cupom é R$ {coupon.min_purchase}'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Apply coupon
+                enrollment.coupon = coupon
+                discount_amount = Decimal(str(coupon.calculate_discount(enrollment.total_amount)))
+                enrollment.discount_amount = discount_amount
+                enrollment.final_amount = enrollment.total_amount - discount_amount
+                
+                # Increment coupon usage
+                coupon.increment_uses()
+                
+            except Coupon.DoesNotExist:
+                return Response(
+                    {'detail': 'Cupom não encontrado'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+        
+        enrollment.save()
         
         serializer = self.get_serializer(enrollment)
         return Response(serializer.data)

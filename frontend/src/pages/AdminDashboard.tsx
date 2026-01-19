@@ -235,9 +235,9 @@ export default function AdminDashboard() {
               </div>
               <h3 className="text-xs sm:text-lg font-bold mb-2 sm:mb-3">Métodos</h3>
               <div className="space-y-1 sm:space-y-2">
-                {stats.payment_methods.map((method) => (
+                {stats.payment_methods.filter((method) => method.payment_method).map((method) => (
                   <div key={method.payment_method} className="flex justify-between text-xs sm:text-sm">
-                    <span className="text-gray-600 truncate">{method.payment_method.replace('PIX à Vista', 'PIX').replace('PIX Parcelado', 'PIX Parc.').replace('Cartão de Crédito', 'Cartão')}</span>
+                    <span className="text-gray-600 truncate">{(method.payment_method || '').replace('PIX à Vista', 'PIX').replace('PIX Parcelado', 'PIX Parc.').replace('Cartão de Crédito', 'Cartão')}</span>
                     <span className="font-semibold ml-1">{method.count}</span>
                   </div>
                 ))}

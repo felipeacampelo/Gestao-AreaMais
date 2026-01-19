@@ -141,11 +141,11 @@ def change_password_view(request):
 @permission_classes([permissions.AllowAny])
 def password_reset_request_view(request):
     """Request password reset - sends email with token."""
-    from django.core.mail import send_mail
     from django.conf import settings
     from django.contrib.auth.tokens import default_token_generator
     from django.utils.http import urlsafe_base64_encode
     from django.utils.encoding import force_bytes
+    from apps.enrollments.email_service import send_password_reset_email
     
     serializer = PasswordResetRequestSerializer(data=request.data)
     
@@ -160,33 +160,11 @@ def password_reset_request_view(request):
             uid = urlsafe_base64_encode(force_bytes(user.pk))
             
             # Create reset link
-            reset_link = f"http://localhost:3000/reset-password/{uid}/{token}/"
+            frontend_url = getattr(settings, 'FRONTEND_URL', 'https://areamais.com.br')
+            reset_link = f"{frontend_url}/reset-password/{uid}/{token}/"
             
-            # Send email
-            subject = 'Recuperação de Senha - AreaMais'
-            message = f"""
-Olá {user.get_full_name() or user.email},
-
-Você solicitou a recuperação de senha.
-
-Clique no link abaixo para criar uma nova senha:
-{reset_link}
-
-Este link expira em 24 horas.
-
-Se você não solicitou esta recuperação, ignore este email.
-
-Atenciosamente,
-Equipe AreaMais
-            """
-            
-            send_mail(
-                subject,
-                message,
-                settings.DEFAULT_FROM_EMAIL,
-                [email],
-                fail_silently=False,
-            )
+            # Send email via Resend
+            send_password_reset_email(user, reset_link)
             
             return Response({
                 'detail': 'Email de recuperação enviado com sucesso. Verifique sua caixa de entrada.'

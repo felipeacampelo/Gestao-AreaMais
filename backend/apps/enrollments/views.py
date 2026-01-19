@@ -1,6 +1,7 @@
 """
 Enrollment views.
 """
+import logging
 from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
@@ -10,6 +11,8 @@ from .serializers import (
     EnrollmentCreateSerializer,
     EnrollmentListSerializer
 )
+
+logger = logging.getLogger(__name__)
 
 
 class EnrollmentViewSet(viewsets.ModelViewSet):
@@ -43,12 +46,11 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         enrollment = serializer.save()
         
-        # TODO: Move email sending to background task (Celery/RQ) to avoid worker timeout
-        # Send confirmation email
-        # try:
-        #     send_enrollment_confirmation_email(enrollment)
-        # except Exception as e:
-        #     print(f"Erro ao enviar email de confirmação: {e}")
+        # Send confirmation email (non-blocking)
+        try:
+            send_enrollment_confirmation_email(enrollment)
+        except Exception as e:
+            logger.error(f"Erro ao enviar email de confirmação: {e}")
         
         # Return full enrollment data
         response_serializer = EnrollmentSerializer(enrollment)

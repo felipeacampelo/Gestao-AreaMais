@@ -66,24 +66,18 @@ class PaymentService:
         if not cpf:
             cpf = profile.cpf
         
-        # Debug: CPF before cleaning
-        print(f"🔍 DEBUG - CPF ANTES de limpar: '{cpf}' (type: {type(cpf)})")
-        
         # Clean CPF format (remove dots, dashes, spaces)
         if cpf:
             cpf = cpf.replace('.', '').replace('-', '').replace(' ', '').strip()
         
-        # Debug: CPF after cleaning
-        print(f"🔍 DEBUG - CPF DEPOIS de limpar: '{cpf}' (length: {len(cpf) if cpf else 0}, isdigit: {cpf.isdigit() if cpf else False})")
-        
         # Validate CPF format
         if not cpf or len(cpf) != 11 or not cpf.isdigit():
-            raise ValueError(f"CPF válido é obrigatório para criar pagamento. CPF fornecido: {cpf}")
+            raise ValueError("CPF válido é obrigatório para criar pagamento.")
         
         # Validate CPF algorithm
         from ..utils import validate_cpf
         if not validate_cpf(cpf):
-            raise ValueError(f"CPF inválido. Por favor, verifique o número digitado. CPF: {cpf}")
+            raise ValueError("CPF inválido. Por favor, verifique o número digitado.")
         
         customer_data = self.asaas.create_customer(
             name=user.get_full_name() or user.email,

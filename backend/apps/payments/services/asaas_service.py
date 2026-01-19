@@ -122,10 +122,6 @@ class AsaasService:
         if province:
             data['province'] = province
         
-        # Debug log
-        print(f"🔍 DEBUG - Creating Asaas customer with CPF: '{cpf_cnpj}' (length: {len(cpf_cnpj)}, isdigit: {cpf_cnpj.isdigit()})")
-        print(f"🔍 DEBUG - Full customer data: {data}")
-        
         return self._make_request('POST', 'customers', data)
     
     def get_customer(self, customer_id: str) -> Dict:

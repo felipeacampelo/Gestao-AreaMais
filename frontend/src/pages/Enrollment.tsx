@@ -549,14 +549,14 @@ export default function Enrollment() {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Observações Adicionais (opcional)
+                Observações Adicionais
               </label>
               <textarea
                 value={formData.observacoes}
                 onChange={(e) => setFormData({ ...formData, observacoes: e.target.value })}
                 rows={4}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple focus:border-transparent text-gray-900 bg-white"
-                placeholder="Restrições alimentares, necessidades especiais, etc..."
+                placeholder="Deseja ficar no quarto com alguém? Restrições alimentares, necessidades especiais, etc..."
               />
             </div>
 

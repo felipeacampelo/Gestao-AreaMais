@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Calendar, MapPin, Users, Clock, LogIn, LogOut, User as UserIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { getProducts, getProduct, type Product } from '../services/api';
+import { getProducts, getProduct, getSettings, type Product } from '../services/api';
 import Countdown from '../components/Countdown';
 
 export default function Home() {
@@ -10,9 +10,11 @@ export default function Home() {
   const { isAuthenticated, user, logout, isAdmin } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [eventDate, setEventDate] = useState<Date | null>(null);
+  const [maxInstallments, setMaxInstallments] = useState(6);
 
   useEffect(() => {
     loadProducts();
+    loadSettings();
   }, []);
 
   const loadProducts = async () => {
@@ -36,6 +38,16 @@ export default function Home() {
     }
   };
 
+  const loadSettings = async () => {
+    try {
+      const response = await getSettings();
+      setMaxInstallments(response.data.max_installments);
+    } catch (err) {
+      console.error('Erro ao carregar configurações:', err);
+      // Keep default value of 6 if API fails
+    }
+  };
+
   // Get the first (and only) product
   const product = products[0];
   const activeBatch = product?.active_batch;
@@ -50,7 +62,6 @@ export default function Home() {
   const creditCardPrice = activeBatch?.credit_card_price 
     ? parseFloat(String(activeBatch.credit_card_price))
     : 1100;
-  const maxInstallments = 6; // Padrão 6x, cupons especiais podem habilitar 10x
   const pixInstallmentValue = (pixInstallmentPrice / maxInstallments).toFixed(2);
   const creditCardInstallmentValue = (creditCardPrice / maxInstallments).toFixed(2);
 
@@ -302,7 +313,7 @@ export default function Home() {
                   R$ {pixInstallmentPrice.toFixed(2)}
                 </div>
                 <p className="text-gray-600 mb-6">
-                  Até 6x de R$ {pixInstallmentValue}<br/>
+                  Até {maxInstallments}x de R$ {pixInstallmentValue}<br/>
                   via PIX
                 </p>
                 <button onClick={() => navigate('/inscricao')} className="btn-primary w-full">
@@ -319,7 +330,7 @@ export default function Home() {
                   R$ {creditCardPrice.toFixed(2)}
                 </div>
                 <p className="text-gray-600 mb-6">
-                  Até 6x de R$ {creditCardInstallmentValue}<br/>
+                  Até {maxInstallments}x de R$ {creditCardInstallmentValue}<br/>
                   no cartão
                 </p>
                 <button onClick={() => navigate('/inscricao')} className="btn-primary w-full">

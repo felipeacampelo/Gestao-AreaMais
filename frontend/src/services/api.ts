@@ -231,4 +231,12 @@ export const updateAdminBatch = (id: number, data: any) =>
 export const deleteAdminBatch = (id: number) =>
   api.delete(`/users/admin/batches/${id}/delete/`);
 
+// Settings endpoints
+export interface AppSettings {
+  max_installments: number;
+  max_installments_with_coupon: number;
+}
+
+export const getSettings = () => api.get<AppSettings>('/enrollments/settings/');
+
 export default api;

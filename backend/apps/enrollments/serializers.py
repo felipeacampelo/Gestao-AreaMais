@@ -22,10 +22,15 @@ class EnrollmentSerializer(serializers.ModelSerializer):
     payments = serializers.SerializerMethodField()
     
     def get_max_installments(self, obj):
-        """Get max installments based on coupon."""
+        """Get max installments based on coupon and global settings."""
+        from .models import Settings
+        
         if obj.coupon and obj.coupon.enable_12x_installments:
-            return 10
-        return 6
+            return obj.coupon.max_installments
+        
+        # Use global settings default
+        settings = Settings.get_settings()
+        return settings.max_installments
     
     def get_payments(self, obj):
         """Get payments for this enrollment."""

@@ -6,7 +6,7 @@ from django.utils.translation import gettext_lazy as _
 from django.utils.html import format_html
 from django.urls import reverse
 from django.utils import timezone
-from .models import Enrollment, Coupon
+from .models import Enrollment, Coupon, Settings
 
 
 @admin.register(Enrollment)
@@ -166,11 +166,12 @@ class EnrollmentAdmin(admin.ModelAdmin):
 class CouponAdmin(admin.ModelAdmin):
     """Admin for Coupon model."""
     
-    list_display = ['code', 'discount_display', 'active_badge', 'uses_display', 'valid_period', 'created_at']
-    list_filter = ['active', 'discount_type', 'created_at']
+    list_display = ['code', 'discount_display', 'max_installments_display', 'active_badge', 'uses_display', 'valid_period', 'created_at']
+    list_filter = ['active', 'discount_type', 'enable_12x_installments', 'created_at']
     search_fields = ['code', 'description']
     readonly_fields = ['uses_count', 'created_at', 'updated_at']
     filter_horizontal = ['products']
+    actions = ['bulk_set_discount_value', 'bulk_set_max_installments']
     
     fieldsets = (
         (_('Informações Básicas'), {
@@ -180,8 +181,8 @@ class CouponAdmin(admin.ModelAdmin):
             'fields': ('discount_type', 'discount_value', 'max_discount')
         }),
         (_('Parcelamento'), {
-            'fields': ('enable_12x_installments',),
-            'description': 'Permite parcelamento em até 10x (padrão é 7x)'
+            'fields': ('enable_12x_installments', 'max_installments'),
+            'description': 'Se "Habilitar Parcelamento Especial" estiver marcado, o cliente poderá parcelar até o valor definido em "Máximo de Parcelas"'
         }),
         (_('Restrições'), {
             'fields': ('min_purchase', 'max_uses', 'uses_count', 'products')
@@ -227,3 +228,118 @@ class CouponAdmin(admin.ModelAdmin):
             obj.valid_until.strftime('%d/%m/%Y')
         )
     valid_period.short_description = _('Período')
+    
+    def max_installments_display(self, obj):
+        """Display max installments."""
+        if obj.enable_12x_installments:
+            return format_html(
+                '<span style="background-color: #8b5cf6; color: white; padding: 2px 8px; border-radius: 3px;">{}</span>',
+                f'{obj.max_installments}x'
+            )
+        return format_html(
+            '<span style="color: gray;">6x (padrão)</span>'
+        )
+    max_installments_display.short_description = _('Parcelas')
+    
+    @admin.action(description=_('Alterar valor de desconto dos cupons selecionados'))
+    def bulk_set_discount_value(self, request, queryset):
+        """Bulk action to set discount value for selected coupons."""
+        from django import forms
+        from django.shortcuts import render
+        from django.http import HttpResponseRedirect
+        
+        class DiscountForm(forms.Form):
+            discount_value = forms.DecimalField(
+                label='Novo valor de desconto',
+                max_digits=10,
+                decimal_places=2,
+                min_value=0,
+                help_text='Porcentagem (0-100) ou valor fixo em R$'
+            )
+        
+        if 'apply' in request.POST:
+            form = DiscountForm(request.POST)
+            if form.is_valid():
+                discount_value = form.cleaned_data['discount_value']
+                updated = queryset.update(discount_value=discount_value)
+                self.message_user(request, f'{updated} cupom(ns) atualizado(s) com desconto de {discount_value}.')
+                return HttpResponseRedirect(request.get_full_path())
+        else:
+            form = DiscountForm()
+        
+        return render(request, 'admin/bulk_edit_form.html', {
+            'title': 'Alterar Valor de Desconto',
+            'objects': queryset,
+            'form': form,
+            'action': 'bulk_set_discount_value',
+            'field_name': 'valor de desconto',
+        })
+    
+    @admin.action(description=_('Alterar máximo de parcelas dos cupons selecionados'))
+    def bulk_set_max_installments(self, request, queryset):
+        """Bulk action to set max installments for selected coupons."""
+        from django import forms
+        from django.shortcuts import render
+        from django.http import HttpResponseRedirect
+        
+        class InstallmentsForm(forms.Form):
+            max_installments = forms.IntegerField(
+                label='Novo máximo de parcelas',
+                min_value=1,
+                max_value=12,
+                help_text='Número máximo de parcelas (1-12)'
+            )
+            enable_special = forms.BooleanField(
+                label='Habilitar parcelamento especial',
+                required=False,
+                initial=True,
+                help_text='Marque para ativar o parcelamento especial nos cupons selecionados'
+            )
+        
+        if 'apply' in request.POST:
+            form = InstallmentsForm(request.POST)
+            if form.is_valid():
+                max_installments = form.cleaned_data['max_installments']
+                enable_special = form.cleaned_data['enable_special']
+                updated = queryset.update(
+                    max_installments=max_installments,
+                    enable_12x_installments=enable_special
+                )
+                self.message_user(request, f'{updated} cupom(ns) atualizado(s) com máximo de {max_installments}x parcelas.')
+                return HttpResponseRedirect(request.get_full_path())
+        else:
+            form = InstallmentsForm()
+        
+        return render(request, 'admin/bulk_edit_form.html', {
+            'title': 'Alterar Máximo de Parcelas',
+            'objects': queryset,
+            'form': form,
+            'action': 'bulk_set_max_installments',
+            'field_name': 'máximo de parcelas',
+        })
+
+
+@admin.register(Settings)
+class SettingsAdmin(admin.ModelAdmin):
+    """Admin for Settings model."""
+    
+    def has_add_permission(self, request):
+        """Prevent adding new settings (singleton pattern)."""
+        return False
+    
+    def has_delete_permission(self, request, obj=None):
+        """Prevent deleting settings."""
+        return False
+    
+    fieldsets = (
+        (_('Parcelamento Padrão'), {
+            'fields': ('max_installments',),
+            'description': 'Máximo de parcelas permitidas sem cupom especial'
+        }),
+        (_('Parcelamento com Cupom'), {
+            'fields': ('max_installments_with_coupon',),
+            'description': 'Máximo de parcelas permitidas quando cupom especial é aplicado'
+        }),
+    )
+    
+    readonly_fields = ['updated_at']

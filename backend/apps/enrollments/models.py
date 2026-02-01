@@ -5,7 +5,7 @@ from decimal import Decimal
 from django.db import models
 from django.conf import settings
 from django.utils.translation import gettext_lazy as _
-from django.core.validators import MinValueValidator
+from django.core.validators import MinValueValidator, MaxValueValidator
 from django.utils import timezone
 
 
@@ -265,9 +265,16 @@ class Coupon(models.Model):
     )
     
     enable_12x_installments = models.BooleanField(
-        default=True,
-        verbose_name='Habilitar 10x',
-        help_text='Permite parcelamento em até 10x (padrão é 7x)'
+        default=False,
+        verbose_name='Habilitar Parcelamento Especial',
+        help_text='Se marcado, usa o valor de "Máximo de Parcelas" abaixo'
+    )
+    
+    max_installments = models.IntegerField(
+        default=6,
+        validators=[MinValueValidator(1), MaxValueValidator(12)],
+        verbose_name='Máximo de Parcelas',
+        help_text='Número máximo de parcelas permitidas com este cupom (padrão: 6)'
     )
     
     # Restrições
@@ -339,3 +346,37 @@ class Coupon(models.Model):
         """Increment usage counter."""
         self.uses_count += 1
         self.save(update_fields=['uses_count'])
+
+
+class Settings(models.Model):
+    """
+    Global settings for the application.
+    """
+    max_installments = models.IntegerField(
+        default=6,
+        validators=[MinValueValidator(1), MaxValueValidator(12)],
+        verbose_name='Máximo de Parcelas Padrão',
+        help_text='Número máximo de parcelas permitidas por padrão (sem cupom especial)'
+    )
+    
+    max_installments_with_coupon = models.IntegerField(
+        default=10,
+        validators=[MinValueValidator(1), MaxValueValidator(12)],
+        verbose_name='Máximo de Parcelas com Cupom',
+        help_text='Número máximo de parcelas permitidas quando cupom especial é aplicado'
+    )
+    
+    updated_at = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Configurações'
+        verbose_name_plural = 'Configurações'
+    
+    def __str__(self):
+        return 'Configurações Globais'
+    
+    @classmethod
+    def get_settings(cls):
+        """Get or create the singleton settings object."""
+        obj, created = cls.objects.get_or_create(pk=1)
+        return obj

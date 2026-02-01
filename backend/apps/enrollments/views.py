@@ -3,9 +3,9 @@ Enrollment views.
 """
 import logging
 from rest_framework import viewsets, permissions, status
-from rest_framework.decorators import action
+from rest_framework.decorators import action, api_view
 from rest_framework.response import Response
-from .models import Enrollment
+from .models import Enrollment, Settings
 from .serializers import (
     EnrollmentSerializer,
     EnrollmentCreateSerializer,
@@ -155,3 +155,13 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
         
         serializer = self.get_serializer(enrollment)
         return Response(serializer.data)
+
+
+@api_view(['GET'])
+def get_settings(request):
+    """Get global application settings."""
+    settings = Settings.get_settings()
+    return Response({
+        'max_installments': settings.max_installments,
+        'max_installments_with_coupon': settings.max_installments_with_coupon,
+    })

@@ -37,7 +37,7 @@ class PaymentCreateSerializer(serializers.Serializer):
     payment_method = serializers.ChoiceField(
         choices=['PIX_CASH', 'PIX_INSTALLMENT', 'CREDIT_CARD']
     )
-    installments = serializers.IntegerField(default=1, min_value=1, max_value=8)
+    installments = serializers.IntegerField(default=1, min_value=1, max_value=12)
     credit_card_token = serializers.CharField(required=False, allow_blank=True)
     credit_card_data = serializers.JSONField(required=False)
     
@@ -62,7 +62,15 @@ class PaymentCreateSerializer(serializers.Serializer):
             raise serializers.ValidationError({'installments': 'PIX à vista deve ter 1 parcela'})
         
         if payment_method in ['PIX_INSTALLMENT', 'CREDIT_CARD']:
-            max_installments = enrollment.product.max_installments
+            # Get max installments from coupon or global settings
+            from apps.enrollments.models import Settings
+            
+            if enrollment.coupon and enrollment.coupon.enable_12x_installments:
+                max_installments = enrollment.coupon.max_installments
+            else:
+                settings = Settings.get_settings()
+                max_installments = settings.max_installments
+            
             if installments > max_installments:
                 raise serializers.ValidationError({
                     'installments': f'Máximo de {max_installments} parcelas permitidas'

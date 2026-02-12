@@ -165,8 +165,8 @@ class PaymentService:
         
         payments = []
         for i in range(1, installments + 1):
-            # Due date: 30 days apart
-            due_date = timezone.now().date() + timedelta(days=30 * i)
+            # Due date: first in 3 days, others every 30 days
+            due_date = timezone.now().date() + timedelta(days=3 + 30 * (i - 1))
             
             # Create payment in Asaas
             asaas_payment = self.asaas.create_pix_payment(

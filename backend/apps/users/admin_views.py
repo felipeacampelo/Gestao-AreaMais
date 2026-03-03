@@ -56,6 +56,23 @@ def admin_dashboard_stats(request):
     # Payment methods breakdown
     payment_methods = Enrollment.objects.values('payment_method').annotate(count=Count('id'))
     
+    # Enrollments by batch
+    batches_stats = []
+    for batch in Batch.objects.select_related('product').all():
+        pending = batch.enrollments.filter(status='PENDING_PAYMENT').count()
+        paid = batch.enrollments.filter(status='PAID').count()
+        total = pending + paid
+        batches_stats.append({
+            'id': batch.id,
+            'name': batch.name,
+            'product_name': batch.product.name,
+            'max_enrollments': batch.max_enrollments,
+            'current_enrollments': total,
+            'pending': pending,
+            'paid': paid,
+            'status': batch.status,
+        })
+    
     return Response({
         'enrollments': {
             'total': total_enrollments,
@@ -74,6 +91,7 @@ def admin_dashboard_stats(request):
             'pending': float(pending_revenue),
         },
         'payment_methods': list(payment_methods),
+        'batches': batches_stats,
     })
 
 

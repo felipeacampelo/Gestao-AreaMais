@@ -16,6 +16,17 @@ import {
 } from 'lucide-react';
 import { getAdminDashboard, getAdminEnrollments } from '../services/api';
 
+interface BatchStats {
+  id: number;
+  name: string;
+  product_name: string;
+  max_enrollments: number | null;
+  current_enrollments: number;
+  pending: number;
+  paid: number;
+  status: string;
+}
+
 interface DashboardStats {
   enrollments: {
     total: number;
@@ -37,6 +48,7 @@ interface DashboardStats {
     payment_method: string;
     count: number;
   }>;
+  batches: BatchStats[];
 }
 
 export default function AdminDashboard() {
@@ -242,6 +254,71 @@ export default function AdminDashboard() {
                   </div>
                 ))}
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* Inscrições por Lote */}
+        {stats && stats.batches && stats.batches.length > 0 && (
+          <div className="bg-white rounded-xl shadow-lg p-3 sm:p-6 mb-6 sm:mb-8">
+            <h2 className="text-lg sm:text-xl font-bold mb-4">Inscrições por Lote</h2>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+              {stats.batches.map((batch) => (
+                <div 
+                  key={batch.id} 
+                  className="border rounded-lg p-3 sm:p-4"
+                  style={{
+                    borderColor: batch.status === 'ACTIVE' ? 'rgb(165, 44, 240)' : '#e5e7eb',
+                    backgroundColor: batch.status === 'ACTIVE' ? 'rgba(165, 44, 240, 0.05)' : 'white'
+                  }}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <h3 className="font-semibold text-sm sm:text-base">{batch.name}</h3>
+                    <span 
+                      className="px-2 py-0.5 rounded-full text-xs font-medium"
+                      style={{
+                        backgroundColor: batch.status === 'ACTIVE' ? 'rgba(165, 44, 240, 0.2)' : 
+                                        batch.status === 'FULL' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(156, 163, 175, 0.2)',
+                        color: batch.status === 'ACTIVE' ? 'rgb(165, 44, 240)' : 
+                               batch.status === 'FULL' ? 'rgb(220, 38, 38)' : 'rgb(107, 114, 128)'
+                      }}
+                    >
+                      {batch.status === 'ACTIVE' ? 'Ativo' : 
+                       batch.status === 'FULL' ? 'Esgotado' : 
+                       batch.status === 'SCHEDULED' ? 'Agendado' : 
+                       batch.status === 'ENDED' ? 'Encerrado' : batch.status}
+                    </span>
+                  </div>
+                  <p className="text-xs text-gray-500 mb-3">{batch.product_name}</p>
+                  
+                  {/* Barra de progresso */}
+                  <div className="mb-2">
+                    <div className="flex justify-between text-xs mb-1">
+                      <span className="text-gray-600">Vagas</span>
+                      <span className="font-medium">
+                        {batch.current_enrollments}{batch.max_enrollments ? `/${batch.max_enrollments}` : ''}
+                      </span>
+                    </div>
+                    {batch.max_enrollments && (
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div 
+                          className="h-2 rounded-full transition-all"
+                          style={{ 
+                            width: `${Math.min((batch.current_enrollments / batch.max_enrollments) * 100, 100)}%`,
+                            backgroundColor: batch.current_enrollments >= batch.max_enrollments ? 'rgb(239, 68, 68)' : 'rgb(165, 44, 240)'
+                          }}
+                        />
+                      </div>
+                    )}
+                  </div>
+                  
+                  {/* Detalhes */}
+                  <div className="flex gap-3 text-xs">
+                    <span className="text-green-600">✓ {batch.paid} pagos</span>
+                    <span className="text-yellow-600">⏳ {batch.pending} pend.</span>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         )}

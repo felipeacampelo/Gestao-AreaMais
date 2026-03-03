@@ -171,8 +171,8 @@ class Batch(models.Model):
     
     @property
     def current_enrollments(self):
-        """Returns the count of paid enrollments in this batch."""
-        return self.enrollments.filter(status='PAID').count()
+        """Returns the count of active enrollments in this batch (pending or paid)."""
+        return self.enrollments.filter(status__in=['PENDING_PAYMENT', 'PAID']).count()
     
     @property
     def is_full(self):

@@ -43,6 +43,8 @@ interface DashboardStats {
   revenue: {
     total: number;
     pending: number;
+    fees: number;
+    net: number;
   };
   payment_methods: Array<{
     payment_method: string;
@@ -221,20 +223,27 @@ export default function AdminDashboard() {
               </div>
             </div>
 
-            {/* Receita Total */}
+            {/* Receita Líquida */}
             <div className="bg-white rounded-xl shadow-lg p-3 sm:p-6">
               <div className="flex items-center justify-between mb-2 sm:mb-4">
-                <div className="p-2 sm:p-3 rounded-full" style={{ backgroundColor: 'rgba(165, 44, 240, 0.1)' }}>
-                  <DollarSign className="w-4 h-4 sm:w-6 sm:h-6" style={{ color: 'rgb(165, 44, 240)' }} />
+                <div className="p-2 sm:p-3 rounded-full" style={{ backgroundColor: 'rgba(34, 197, 94, 0.1)' }}>
+                  <DollarSign className="w-4 h-4 sm:w-6 sm:h-6" style={{ color: 'rgb(34, 197, 94)' }} />
                 </div>
                 <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 text-green-600" />
               </div>
-              <h3 className="text-sm sm:text-2xl font-bold mb-1">
-                <span className="hidden sm:inline">R$ </span>{stats.revenue.total.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}
+              <h3 className="text-sm sm:text-2xl font-bold mb-1 text-green-600">
+                <span className="hidden sm:inline">R$ </span>{stats.revenue.net.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
               </h3>
-              <p className="text-xs sm:text-base text-gray-600">Receita</p>
-              <div className="mt-2 sm:mt-4 text-xs sm:text-sm text-gray-500 hidden sm:block">
-                R$ {stats.revenue.pending.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} pendente
+              <p className="text-xs sm:text-base text-gray-600">Receita Líquida</p>
+              <div className="mt-2 sm:mt-4 space-y-1 text-xs sm:text-sm">
+                <div className="flex justify-between text-gray-500">
+                  <span>Bruta:</span>
+                  <span>R$ {stats.revenue.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                </div>
+                <div className="flex justify-between text-red-500">
+                  <span>Taxas:</span>
+                  <span>- R$ {stats.revenue.fees.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                </div>
               </div>
             </div>
 

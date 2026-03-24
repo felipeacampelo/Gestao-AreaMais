@@ -14,6 +14,34 @@ from apps.enrollments.serializers import EnrollmentSerializer
 from apps.payments.models import Payment
 from apps.products.models import Product, Batch
 from apps.products.serializers import ProductSerializer, BatchSerializer
+from decimal import Decimal
+
+
+def calculate_asaas_fee(payment_amount, payment_method, installments):
+    """
+    Calculate Asaas fee based on payment method and installments.
+    
+    Taxas:
+    - PIX (à vista ou parcelado): R$ 1,99 por transação
+    - Cartão à vista: R$ 0,49 + 2,99%
+    - Cartão 2-6 parcelas: R$ 0,49 + 2,49%
+    - Cartão 7-12 parcelas: R$ 0,49 + 2,99%
+    """
+    amount = Decimal(str(payment_amount))
+    
+    if payment_method in ['PIX_CASH', 'PIX_INSTALLMENT']:
+        return Decimal('1.99')
+    elif payment_method == 'CREDIT_CARD':
+        fixed_fee = Decimal('0.49')
+        if installments == 1:
+            percentage_fee = amount * Decimal('0.0299')
+        elif 2 <= installments <= 6:
+            percentage_fee = amount * Decimal('0.0249')
+        else:  # 7-12 parcelas
+            percentage_fee = amount * Decimal('0.0299')
+        return fixed_fee + percentage_fee
+    
+    return Decimal('0')
 
 
 @api_view(['GET'])
@@ -41,6 +69,23 @@ def admin_dashboard_stats(request):
     pending_revenue = Payment.objects.filter(
         status='PENDING'
     ).aggregate(total=Sum('amount'))['total'] or 0
+    
+    # Calculate fees and net revenue
+    total_fees = Decimal('0')
+    confirmed_payments_list = Payment.objects.filter(
+        status__in=['CONFIRMED', 'RECEIVED']
+    ).select_related('enrollment')
+    
+    for payment in confirmed_payments_list:
+        enrollment = payment.enrollment
+        fee = calculate_asaas_fee(
+            payment.amount,
+            enrollment.payment_method,
+            enrollment.installments
+        )
+        total_fees += fee
+    
+    net_revenue = Decimal(str(total_revenue)) - total_fees
     
     # Recent activity (last 7 days)
     week_ago = timezone.now() - timedelta(days=7)
@@ -89,6 +134,8 @@ def admin_dashboard_stats(request):
         'revenue': {
             'total': float(total_revenue),
             'pending': float(pending_revenue),
+            'fees': float(total_fees),
+            'net': float(net_revenue),
         },
         'payment_methods': list(payment_methods),
         'batches': batches_stats,

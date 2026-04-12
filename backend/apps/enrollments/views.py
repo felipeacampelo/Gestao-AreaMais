@@ -66,13 +66,38 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
         
         enrollment = self.get_object()
         
-        # Only allow updating if no payments have been made
-        if enrollment.payments.filter(status__in=['CONFIRMED', 'RECEIVED']).exists():
-            return Response(
-                {'detail': 'Não é possível editar inscrição com pagamentos confirmados'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # Check if there are confirmed payments
+        has_confirmed_payments = enrollment.payments.filter(status__in=['CONFIRMED', 'RECEIVED']).exists()
         
+        if has_confirmed_payments:
+            # Only allow editing 'observacoes' field when payment is confirmed
+            form_data = request.data.get('form_data', {})
+            
+            # Check if trying to edit fields other than observacoes
+            if 'coupon_code' in request.data:
+                return Response(
+                    {'detail': 'Não é possível aplicar cupom em inscrição com pagamentos confirmados'},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # Check if trying to edit other form_data fields besides observacoes
+            if form_data:
+                forbidden_fields = [key for key in form_data.keys() if key != 'observacoes']
+                if forbidden_fields:
+                    return Response(
+                        {'detail': 'Apenas o campo de observações pode ser editado após pagamento confirmado'},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+                
+                # Update only observacoes
+                if 'observacoes' in form_data:
+                    enrollment.form_data['observacoes'] = form_data['observacoes']
+                    enrollment.save()
+            
+            serializer = self.get_serializer(enrollment)
+            return Response(serializer.data)
+        
+        # Original behavior for enrollments without confirmed payments
         # Update form_data
         if 'form_data' in request.data:
             enrollment.form_data.update(request.data['form_data'])

@@ -5,6 +5,7 @@ from rest_framework import viewsets, permissions, status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.exceptions import PermissionDenied
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.conf import settings
@@ -22,19 +23,18 @@ class PaymentViewSet(viewsets.ModelViewSet):
     ViewSet for payments.
     Users can create and view payments for their enrollments.
     """
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
         """Return payments for current user's enrollments."""
-        # Durante create, não precisamos do queryset
-        if self.action == 'create':
-            return Payment.objects.none()
-        
-        if self.request.user and self.request.user.is_authenticated:
-            return Payment.objects.filter(
-                enrollment__user=self.request.user
-            ).select_related('enrollment', 'enrollment__product', 'enrollment__batch')
-        return Payment.objects.all().select_related('enrollment', 'enrollment__product', 'enrollment__batch')
+        user = self.request.user
+
+        if user.is_staff or user.is_superuser:
+            return Payment.objects.all().select_related('enrollment', 'enrollment__product', 'enrollment__batch')
+
+        return Payment.objects.filter(
+            enrollment__user=user
+        ).select_related('enrollment', 'enrollment__product', 'enrollment__batch')
     
     def get_serializer_class(self):
         if self.action == 'create':

@@ -350,13 +350,15 @@ export default function MyEnrollments() {
                     </div>
                   )}
 
-                  {enrollment.status === 'PAID' && enrollment.paid_at && (
+                  {enrollment.status === 'PAID' && (
                     <div className="mt-4 pt-4 border-t">
                       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                        <span className="text-sm text-gray-600">
-                          Pago em: {new Date(enrollment.paid_at).toLocaleDateString('pt-BR')} às{' '}
-                          {new Date(enrollment.paid_at).toLocaleTimeString('pt-BR')}
-                        </span>
+                        {enrollment.paid_at && (
+                          <span className="text-sm text-gray-600">
+                            Pago em: {new Date(enrollment.paid_at).toLocaleDateString('pt-BR')} às{' '}
+                            {new Date(enrollment.paid_at).toLocaleTimeString('pt-BR')}
+                          </span>
+                        )}
                         
                         <button
                           onClick={() => navigate(`/enrollment/edit/${enrollment.id}`)}

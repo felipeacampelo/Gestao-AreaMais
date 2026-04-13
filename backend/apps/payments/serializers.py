@@ -44,12 +44,21 @@ class PaymentCreateSerializer(serializers.Serializer):
     def validate(self, data):
         """Validate payment data."""
         from apps.enrollments.models import Enrollment
+        request = self.context.get('request')
         
         # Validate enrollment
         try:
             enrollment = Enrollment.objects.get(id=data['enrollment_id'])
         except Enrollment.DoesNotExist:
             raise serializers.ValidationError({'enrollment_id': 'Inscrição não encontrada'})
+
+        if not request or not request.user.is_authenticated:
+            raise serializers.ValidationError({'detail': 'Autenticação obrigatória'})
+
+        if not (request.user.is_staff or request.user.is_superuser) and enrollment.user_id != request.user.id:
+            raise serializers.ValidationError({
+                'enrollment_id': 'Você não pode criar pagamento para esta inscrição'
+            })
         
         if enrollment.status != 'PENDING_PAYMENT':
             raise serializers.ValidationError({'enrollment_id': 'Inscrição já possui pagamento'})

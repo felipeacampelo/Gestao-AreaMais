@@ -23,6 +23,7 @@ class PaymentViewSet(viewsets.ModelViewSet):
     ViewSet for payments.
     Users can create and view payments for their enrollments.
     """
+    http_method_names = ['get', 'post', 'head', 'options']
     permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
@@ -117,6 +118,12 @@ def simulate_pix_payment(request):
     }
     """
     from apps.payments.services.asaas_service import AsaasService
+
+    if not settings.DEBUG and not (request.user and request.user.is_authenticated and (request.user.is_staff or request.user.is_superuser)):
+        return Response(
+            {'detail': 'Not found.'},
+            status=status.HTTP_404_NOT_FOUND
+        )
     
     payment_id = request.data.get('payment_id')
     pix_payload = request.data.get('pix_payload')
@@ -199,6 +206,9 @@ def calculate_payment(request):
             {'detail': 'Inscrição não encontrada'},
             status=status.HTTP_404_NOT_FOUND
         )
+
+    if not (request.user.is_staff or request.user.is_superuser or enrollment.user_id == request.user.id):
+        raise PermissionDenied('Você não tem permissão para consultar esta inscrição.')
     
     # Calculate amounts
     enrollment.payment_method = payment_method

@@ -20,7 +20,8 @@ class EnrollmentViewSet(viewsets.ModelViewSet):
     ViewSet for enrollments.
     Users can create and view their own enrollments.
     """
-    permission_classes = [permissions.AllowAny]
+    http_method_names = ['get', 'post', 'put', 'patch', 'head', 'options']
+    permission_classes = [permissions.IsAuthenticated]
     
     def get_queryset(self):
         """Return enrollments for current user."""

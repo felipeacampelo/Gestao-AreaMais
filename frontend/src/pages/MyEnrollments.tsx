@@ -313,9 +313,9 @@ export default function MyEnrollments() {
                           Continuar Pagamento
                         </button>
                         
-                        {/* Botão Editar - só aparece se não há nenhum pagamento feito */}
+                        {/* Botão Editar - muda conforme tem ou não pagamentos confirmados */}
                         {(!enrollment.payments || enrollment.payments.length === 0 || 
-                          enrollment.payments.every((p: any) => p.status === 'PENDING')) && (
+                          enrollment.payments.every((p: any) => p.status === 'PENDING')) ? (
                           <button
                             onClick={() => navigate(`/enrollment/edit/${enrollment.id}`)}
                             className="px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
@@ -329,6 +329,21 @@ export default function MyEnrollments() {
                           >
                             <Edit className="w-4 h-4" />
                             <span className="text-sm sm:text-base">Editar Inscrição</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => navigate(`/enrollment/edit/${enrollment.id}`)}
+                            className="px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                            style={{
+                              backgroundColor: 'rgb(165, 44, 240)',
+                              color: 'white'
+                            }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgb(145, 24, 220)'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgb(165, 44, 240)'}
+                            title="Editar observações"
+                          >
+                            <Edit className="w-4 h-4" />
+                            <span className="text-sm sm:text-base">Editar Observações</span>
                           </button>
                         )}
                       </div>

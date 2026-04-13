@@ -18,6 +18,7 @@ export default function EditEnrollment() {
   const [couponError, setCouponError] = useState('');
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [hasCoupon, setHasCoupon] = useState(false);
+  const [hasConfirmedPayments, setHasConfirmedPayments] = useState(false);
   
   const [formData, setFormData] = useState({
     nome_completo: '',
@@ -49,6 +50,12 @@ export default function EditEnrollment() {
         setHasCoupon(true);
         setCouponDiscount(parseFloat(enrollmentData.discount_amount));
       }
+      
+      // Check if enrollment has confirmed payments
+      const hasConfirmed = enrollmentData.payments?.some(
+        (p: any) => p.status === 'CONFIRMED' || p.status === 'RECEIVED'
+      ) || false;
+      setHasConfirmedPayments(hasConfirmed);
       
       // Preencher formulário com dados existentes
       if (enrollmentData.form_data) {
@@ -171,8 +178,16 @@ export default function EditEnrollment() {
         <div className="bg-white rounded-xl shadow-lg p-8">
           <h1 className="text-3xl font-bold mb-2">Editar Inscrição</h1>
           <p className="text-gray-600 mb-8">
-            Atualize seus dados pessoais
+            {hasConfirmedPayments 
+              ? 'Apenas o campo de observações pode ser editado após pagamento confirmado'
+              : 'Atualize seus dados pessoais'}
           </p>
+          
+          {hasConfirmedPayments && (
+            <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg mb-6">
+              ℹ️ Esta inscrição possui pagamentos confirmados. Apenas o campo de observações pode ser editado.
+            </div>
+          )}
 
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
@@ -198,6 +213,7 @@ export default function EditEnrollment() {
                 value={formData.nome_completo}
                 onChange={(e) => setFormData({ ...formData, nome_completo: e.target.value })}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple focus:border-transparent text-gray-900 bg-white"
+                disabled={hasConfirmedPayments}
               />
             </div>
 
@@ -211,6 +227,7 @@ export default function EditEnrollment() {
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple focus:border-transparent text-gray-900 bg-white"
+                disabled={hasConfirmedPayments}
               />
             </div>
 
@@ -226,6 +243,7 @@ export default function EditEnrollment() {
                   value={formData.telefone}
                   onChange={(e) => setFormData({ ...formData, telefone: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple focus:border-transparent text-gray-900 bg-white"
+                  disabled={hasConfirmedPayments}
                 />
               </div>
 
@@ -240,6 +258,7 @@ export default function EditEnrollment() {
                   value={formData.data_nascimento}
                   onChange={(e) => setFormData({ ...formData, data_nascimento: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple focus:border-transparent text-gray-900 bg-white"
+                  disabled={hasConfirmedPayments}
                 />
               </div>
             </div>
@@ -256,6 +275,7 @@ export default function EditEnrollment() {
                   onChange={(e) => setFormData({ ...formData, cpf: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple focus:border-transparent text-gray-900 bg-white"
                   maxLength={14}
+                  disabled={hasConfirmedPayments}
                 />
               </div>
 
@@ -270,6 +290,7 @@ export default function EditEnrollment() {
                   value={formData.rg}
                   onChange={(e) => setFormData({ ...formData, rg: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple focus:border-transparent text-gray-900 bg-white"
+                  disabled={hasConfirmedPayments}
                 />
               </div>
             </div>
@@ -285,6 +306,7 @@ export default function EditEnrollment() {
                 onChange={(e) => setFormData({ ...formData, cep: e.target.value })}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple focus:border-transparent text-gray-900 bg-white"
                 maxLength={9}
+                disabled={hasConfirmedPayments}
               />
             </div>
 
@@ -297,6 +319,7 @@ export default function EditEnrollment() {
                 value={formData.tamanho_camiseta}
                 onChange={(e) => setFormData({ ...formData, tamanho_camiseta: e.target.value })}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple focus:border-transparent text-gray-900 bg-white"
+                disabled={hasConfirmedPayments}
               >
                 <option value="">Selecione o tamanho...</option>
                 <option value="PP">PP</option>
@@ -318,6 +341,7 @@ export default function EditEnrollment() {
                   value={formData.membro_batista_capital}
                   onChange={(e) => setFormData({ ...formData, membro_batista_capital: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple focus:border-transparent text-gray-900 bg-white"
+                  disabled={hasConfirmedPayments}
                 >
                   <option value="">Selecione...</option>
                   <option value="sim">Sim</option>
@@ -336,6 +360,7 @@ export default function EditEnrollment() {
                     value={formData.igreja}
                     onChange={(e) => setFormData({ ...formData, igreja: e.target.value })}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple focus:border-transparent text-gray-900 bg-white"
+                    disabled={hasConfirmedPayments}
                   />
                 </div>
               )}
@@ -349,6 +374,7 @@ export default function EditEnrollment() {
                   value={formData.lider_pg}
                   onChange={(e) => setFormData({ ...formData, lider_pg: e.target.value })}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple focus:border-transparent text-gray-900 bg-white"
+                  disabled={hasConfirmedPayments}
                 />
               </div>
 
@@ -366,7 +392,7 @@ export default function EditEnrollment() {
             </div>
 
             {/* Cupom de Desconto */}
-            {!hasCoupon && (
+            {!hasCoupon && !hasConfirmedPayments && (
               <div className="border-t pt-6">
                 <label className="block text-sm font-medium text-gray-700 mb-3">
                   <Ticket className="w-4 h-4 inline mr-2" />

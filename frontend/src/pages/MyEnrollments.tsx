@@ -337,10 +337,27 @@ export default function MyEnrollments() {
 
                   {enrollment.status === 'PAID' && enrollment.paid_at && (
                     <div className="mt-4 pt-4 border-t">
-                      <span className="text-sm text-gray-600">
-                        Pago em: {new Date(enrollment.paid_at).toLocaleDateString('pt-BR')} às{' '}
-                        {new Date(enrollment.paid_at).toLocaleTimeString('pt-BR')}
-                      </span>
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                        <span className="text-sm text-gray-600">
+                          Pago em: {new Date(enrollment.paid_at).toLocaleDateString('pt-BR')} às{' '}
+                          {new Date(enrollment.paid_at).toLocaleTimeString('pt-BR')}
+                        </span>
+                        
+                        <button
+                          onClick={() => navigate(`/enrollment/edit/${enrollment.id}`)}
+                          className="px-4 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
+                          style={{
+                            backgroundColor: 'rgb(165, 44, 240)',
+                            color: 'white'
+                          }}
+                          onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgb(145, 24, 220)'}
+                          onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgb(165, 44, 240)'}
+                          title="Editar observações"
+                        >
+                          <Edit className="w-4 h-4" />
+                          <span className="text-sm sm:text-base">Editar Observações</span>
+                        </button>
+                      </div>
                     </div>
                   )}
                 </div>

@@ -8,6 +8,8 @@ import {
   CheckCircle,
   Clock,
   AlertTriangle,
+  ChevronDown,
+  ChevronUp,
   ArrowLeft,
   Search,
   Filter,
@@ -83,6 +85,7 @@ export default function AdminDashboard() {
   const [allEnrollments, setAllEnrollments] = useState<any[]>([]);
   const [enrollments, setEnrollments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showOverduePayments, setShowOverduePayments] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState('');
@@ -370,108 +373,127 @@ export default function AdminDashboard() {
         )}
 
         {/* Pagamentos em atraso */}
-        <div className="bg-white rounded-xl shadow-lg p-3 sm:p-6 mb-6 sm:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
-            <div>
-              <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-red-600" />
-                Pagamentos em atraso
-              </h2>
-              <p className="text-sm text-gray-600">
-                Inscrições com parcelas vencidas e ainda não pagas.
-              </p>
+        <div className="bg-white rounded-xl shadow-lg mb-6 sm:mb-8 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setShowOverduePayments((value) => !value)}
+            className="w-full px-3 sm:px-6 py-4 flex items-center justify-between gap-3 text-left"
+          >
+            <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+              <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0" />
+              <div className="min-w-0">
+                <h2 className="text-lg sm:text-xl font-bold truncate">Pagamentos em atraso</h2>
+                <p className="text-sm text-gray-600 hidden sm:block">
+                  Clique na seta para ver as inscrições e parcelas atrasadas.
+                </p>
+              </div>
             </div>
-            <div className="flex flex-wrap gap-2 sm:gap-3 text-sm">
-              <span className="px-3 py-1 rounded-full bg-red-50 text-red-700 font-medium">
-                {overdueEnrollments.length} inscrições
-              </span>
-              <span className="px-3 py-1 rounded-full bg-red-50 text-red-700 font-medium">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <span className="px-3 py-1 rounded-full bg-red-50 text-red-700 font-medium text-sm whitespace-nowrap">
                 {overduePaymentsCount} parcelas
               </span>
-              <span className="px-3 py-1 rounded-full bg-red-50 text-red-700 font-medium">
-                R$ {formatCurrency(overdueTotalAmount)}
-              </span>
+              {showOverduePayments ? (
+                <ChevronUp className="w-5 h-5 text-gray-500 flex-shrink-0" />
+              ) : (
+                <ChevronDown className="w-5 h-5 text-gray-500 flex-shrink-0" />
+              )}
             </div>
-          </div>
+          </button>
 
-          {overdueEnrollments.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-green-200 bg-green-50 px-4 py-6 text-green-800">
-              Nenhum pagamento está em atraso no momento.
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-              {overdueEnrollments.map((item) => {
-                const name = item.enrollment.form_data?.nome_completo || item.enrollment.user_email || 'Sem nome';
-                return (
-                  <div
-                    key={item.enrollment.id}
-                    className="rounded-xl border border-red-200 bg-red-50/50 p-4 sm:p-5"
-                  >
-                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
-                      <div className="min-w-0">
-                        <p className="font-semibold text-base sm:text-lg truncate">{name}</p>
-                        <p className="text-sm text-gray-600">
-                          {item.enrollment.user_email} • {item.enrollment.product?.name || item.enrollment.product_name || 'Produto'}
-                        </p>
-                        <p className="text-sm text-gray-600">
-                          Lote: {item.enrollment.batch?.name || item.enrollment.batch_name || 'N/A'}
-                        </p>
-                      </div>
+          {showOverduePayments && (
+            <div className="border-t px-3 sm:px-6 py-4 sm:py-6">
+              <div className="flex flex-wrap gap-2 sm:gap-3 text-sm mb-4">
+                <span className="px-3 py-1 rounded-full bg-red-50 text-red-700 font-medium">
+                  {overdueEnrollments.length} inscrições
+                </span>
+                <span className="px-3 py-1 rounded-full bg-red-50 text-red-700 font-medium">
+                  R$ {formatCurrency(overdueTotalAmount)}
+                </span>
+                <span className="px-3 py-1 rounded-full bg-red-50 text-red-700 font-medium">
+                  {overduePaymentsCount} parcelas em aberto
+                </span>
+              </div>
 
-                      <button
-                        onClick={() => setSelectedEnrollment(item.enrollment)}
-                        className="px-3 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors"
-                        style={{ backgroundColor: 'rgb(165, 44, 240)', color: 'white' }}
-                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgb(145, 24, 220)'}
-                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgb(165, 44, 240)'}
+              {overdueEnrollments.length === 0 ? (
+                <div className="rounded-lg border border-dashed border-green-200 bg-green-50 px-4 py-6 text-green-800">
+                  Nenhum pagamento está em atraso no momento.
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                  {overdueEnrollments.map((item) => {
+                    const name = item.enrollment.form_data?.nome_completo || item.enrollment.user_email || 'Sem nome';
+                    return (
+                      <div
+                        key={item.enrollment.id}
+                        className="rounded-xl border border-red-200 bg-red-50/50 p-4 sm:p-5"
                       >
-                        Ver inscrição
-                      </button>
-                    </div>
-
-                    <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
-                      <div className="rounded-lg bg-white p-3 border">
-                        <p className="text-gray-500">Parcelas atrasadas</p>
-                        <p className="font-semibold">{item.overdue_payments.length}</p>
-                      </div>
-                      <div className="rounded-lg bg-white p-3 border">
-                        <p className="text-gray-500">Total em atraso</p>
-                        <p className="font-semibold">R$ {formatCurrency(item.total_overdue_amount)}</p>
-                      </div>
-                      <div className="rounded-lg bg-white p-3 border col-span-2 sm:col-span-1">
-                        <p className="text-gray-500">Mais antiga</p>
-                        <p className="font-semibold">
-                          {parseLocalDate(item.oldest_due_date).toLocaleDateString('pt-BR')}
-                        </p>
-                      </div>
-                    </div>
-
-                    <div className="mt-4 space-y-2">
-                      {item.overdue_payments.map((payment) => (
-                        <div
-                          key={payment.id}
-                          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg bg-white border px-3 py-2"
-                        >
-                          <div>
-                            <p className="font-medium">
-                              Parcela {payment.installment_number}
+                        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="font-semibold text-base sm:text-lg truncate">{name}</p>
+                            <p className="text-sm text-gray-600">
+                              {item.enrollment.user_email} • {item.enrollment.product?.name || item.enrollment.product_name || 'Produto'}
                             </p>
                             <p className="text-sm text-gray-600">
-                              Venceu em {parseLocalDate(payment.due_date).toLocaleDateString('pt-BR')}
+                              Lote: {item.enrollment.batch?.name || item.enrollment.batch_name || 'N/A'}
                             </p>
                           </div>
-                          <div className="text-left sm:text-right">
-                            <p className="font-semibold">R$ {payment.amount}</p>
-                            <p className="text-sm text-red-700">
-                              {payment.days_overdue} {payment.days_overdue === 1 ? 'dia' : 'dias'} em atraso
+
+                          <button
+                            onClick={() => setSelectedEnrollment(item.enrollment)}
+                            className="px-3 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors"
+                            style={{ backgroundColor: 'rgb(165, 44, 240)', color: 'white' }}
+                            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgb(145, 24, 220)'}
+                            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgb(165, 44, 240)'}
+                          >
+                            Ver inscrição
+                          </button>
+                        </div>
+
+                        <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                          <div className="rounded-lg bg-white p-3 border">
+                            <p className="text-gray-500">Parcelas atrasadas</p>
+                            <p className="font-semibold">{item.overdue_payments.length}</p>
+                          </div>
+                          <div className="rounded-lg bg-white p-3 border">
+                            <p className="text-gray-500">Total em atraso</p>
+                            <p className="font-semibold">R$ {formatCurrency(item.total_overdue_amount)}</p>
+                          </div>
+                          <div className="rounded-lg bg-white p-3 border col-span-2 sm:col-span-1">
+                            <p className="text-gray-500">Mais antiga</p>
+                            <p className="font-semibold">
+                              {parseLocalDate(item.oldest_due_date).toLocaleDateString('pt-BR')}
                             </p>
                           </div>
                         </div>
-                      ))}
-                    </div>
-                  </div>
-                );
-              })}
+
+                        <div className="mt-4 space-y-2">
+                          {item.overdue_payments.map((payment) => (
+                            <div
+                              key={payment.id}
+                              className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg bg-white border px-3 py-2"
+                            >
+                              <div>
+                                <p className="font-medium">
+                                  Parcela {payment.installment_number}
+                                </p>
+                                <p className="text-sm text-gray-600">
+                                  Venceu em {parseLocalDate(payment.due_date).toLocaleDateString('pt-BR')}
+                                </p>
+                              </div>
+                              <div className="text-left sm:text-right">
+                                <p className="font-semibold">R$ {payment.amount}</p>
+                                <p className="text-sm text-red-700">
+                                  {payment.days_overdue} {payment.days_overdue === 1 ? 'dia' : 'dias'} em atraso
+                                </p>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Users, 
@@ -66,6 +66,13 @@ const formatCurrency = (value: number) =>
 
 const ENROLLMENTS_PAGE_SIZE = 20;
 
+const escapeCsvCell = (value: unknown) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+
+const formatCpfForCsv = (cpf: unknown) => {
+  const text = String(cpf ?? '').trim();
+  return text ? `="${text}"` : '';
+};
+
 type EnrollmentListResponse =
   | Enrollment[]
   | {
@@ -102,6 +109,8 @@ export default function AdminDashboard() {
   const [statusFilter, setStatusFilter] = useState('');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState('');
   const [selectedEnrollment, setSelectedEnrollment] = useState<any>(null);
+  const hasMountedRef = useRef(false);
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     loadData();
@@ -112,12 +121,19 @@ export default function AdminDashboard() {
   const overdueTotalAmount = Number(overdueSummary.total_overdue_amount || 0);
 
   const buildEnrollmentParams = (page: number) => ({
-    search: searchTerm || undefined,
+    search: searchTerm.trim() || undefined,
     status: statusFilter || undefined,
     payment_method: paymentMethodFilter || undefined,
     page,
     page_size: ENROLLMENTS_PAGE_SIZE,
   });
+
+  const clearSearchDebounce = () => {
+    if (searchDebounceRef.current) {
+      clearTimeout(searchDebounceRef.current);
+      searchDebounceRef.current = null;
+    }
+  };
 
   const applyEnrollmentResponse = (data: EnrollmentListResponse, page: number) => {
     const results = Array.isArray(data) ? data : data.results || [];
@@ -147,6 +163,8 @@ export default function AdminDashboard() {
   };
 
   const handleSearch = async () => {
+    clearSearchDebounce();
+
     try {
       const res = await getAdminEnrollments(buildEnrollmentParams(1));
       applyEnrollmentResponse(res.data, 1);
@@ -167,6 +185,20 @@ export default function AdminDashboard() {
       console.error('Error loading page:', error);
     }
   };
+
+  useEffect(() => {
+    if (!hasMountedRef.current) {
+      hasMountedRef.current = true;
+      return;
+    }
+
+    clearSearchDebounce();
+    searchDebounceRef.current = setTimeout(() => {
+      void handleSearch();
+    }, 300);
+
+    return clearSearchDebounce;
+  }, [searchTerm, statusFilter, paymentMethodFilter]);
 
   const exportToCSV = async () => {
     setExporting(true);
@@ -206,7 +238,7 @@ export default function AdminDashboard() {
         e.form_data?.nome_completo || '',
         e.user_email,
         e.form_data?.telefone || '',
-        e.form_data?.cpf || '',
+        formatCpfForCsv(e.form_data?.cpf),
         e.form_data?.rg || '',
         e.form_data?.data_nascimento || '',
         e.form_data?.tamanho_camiseta || '',
@@ -228,8 +260,8 @@ export default function AdminDashboard() {
       ]);
 
       const csvContent = [
-        headers.join(','),
-        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+        headers.map(escapeCsvCell).join(','),
+        ...rows.map(row => row.map(escapeCsvCell).join(','))
       ].join('\n');
 
       const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
@@ -576,7 +608,13 @@ export default function AdminDashboard() {
             </div>
             
             {/* Filters */}
-            <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
+            <form
+              className="flex flex-col sm:flex-row gap-2 sm:gap-4"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleSearch();
+              }}
+            >
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-gray-400" />
                 <input
@@ -584,7 +622,6 @@ export default function AdminDashboard() {
                   placeholder="Buscar..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
                   className="w-full pl-9 sm:pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple text-sm sm:text-base text-gray-900 bg-white"
                 />
               </div>
@@ -613,14 +650,14 @@ export default function AdminDashboard() {
                 </select>
                 
                 <button
-                  onClick={handleSearch}
+                  type="submit"
                   className="btn-primary flex items-center justify-center gap-1 sm:gap-2 px-3 sm:px-4"
                 >
                   <Filter className="w-4 h-4" />
                   <span className="hidden sm:inline">Filtrar</span>
                 </button>
               </div>
-            </div>
+            </form>
           </div>
 
           {/* Mobile Cards View */}

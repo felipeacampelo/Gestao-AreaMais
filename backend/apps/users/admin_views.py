@@ -1,8 +1,12 @@
 """
 Admin views for managing system data.
 """
+from collections import OrderedDict
+from decimal import Decimal
+
 from rest_framework import generics, permissions, status
 from rest_framework.decorators import api_view, permission_classes
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.response import Response
 from django.db.models import Count, Sum, Q
 from django.utils import timezone
@@ -14,7 +18,12 @@ from apps.enrollments.serializers import EnrollmentSerializer
 from apps.payments.models import Payment
 from apps.products.models import Product, Batch
 from apps.products.serializers import ProductSerializer, BatchSerializer
-from decimal import Decimal
+
+
+class AdminEnrollmentPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = 'page_size'
+    max_page_size = 100
 
 
 def calculate_asaas_fee(payment_amount, payment_method, installments):
@@ -42,6 +51,80 @@ def calculate_asaas_fee(payment_amount, payment_method, installments):
         return fixed_fee + percentage_fee
     
     return Decimal('0')
+
+
+def build_overdue_enrollments():
+    """Build grouped overdue enrollments for admin dashboards."""
+    today = timezone.localdate()
+    unpaid_statuses = ['CREATED', 'PENDING', 'OVERDUE']
+    payments = Payment.objects.select_related(
+        'enrollment',
+        'enrollment__product',
+        'enrollment__batch',
+        'enrollment__user',
+    ).prefetch_related(
+        'enrollment__payments',
+    ).filter(
+        due_date__lt=today,
+        status__in=unpaid_statuses,
+    ).order_by('enrollment_id', 'due_date', 'installment_number')
+
+    grouped = OrderedDict()
+    total_overdue_amount = Decimal('0')
+    total_overdue_payments = 0
+
+    for payment in payments:
+        enrollment = payment.enrollment
+        enrollment_id = enrollment.id
+
+        if enrollment_id not in grouped:
+            serialized_enrollment = EnrollmentSerializer(enrollment).data
+            grouped[enrollment_id] = {
+                **serialized_enrollment,
+                'overdue_payments': [],
+                'overdue_payments_count': 0,
+                'total_overdue_amount': '0.00',
+                'oldest_due_date': None,
+            }
+
+        days_overdue = (today - payment.due_date).days
+        payment_amount = Decimal(str(payment.amount))
+        payment_data = {
+            'id': payment.id,
+            'installment_number': payment.installment_number,
+            'amount': str(payment.amount),
+            'status': payment.status,
+            'due_date': payment.due_date.isoformat() if payment.due_date else None,
+            'paid_at': payment.paid_at.isoformat() if payment.paid_at else None,
+            'days_overdue': days_overdue,
+        }
+
+        grouped[enrollment_id]['overdue_payments'].append(payment_data)
+        grouped[enrollment_id]['overdue_payments_count'] += 1
+        grouped[enrollment_id]['total_overdue_amount'] = str(
+            Decimal(grouped[enrollment_id]['total_overdue_amount']) + payment_amount
+        )
+        if grouped[enrollment_id]['oldest_due_date'] is None:
+            grouped[enrollment_id]['oldest_due_date'] = payment.due_date.isoformat()
+
+        total_overdue_amount += payment_amount
+        total_overdue_payments += 1
+
+    results = sorted(
+        grouped.values(),
+        key=lambda item: (
+            -item['overdue_payments_count'],
+            -Decimal(item['total_overdue_amount']),
+            item['oldest_due_date'] or '9999-12-31',
+        ),
+    )
+
+    return {
+        'count': len(grouped),
+        'total_overdue_payments': total_overdue_payments,
+        'total_overdue_amount': str(total_overdue_amount),
+        'results': results,
+    }
 
 
 @api_view(['GET'])
@@ -144,6 +227,14 @@ def admin_dashboard_stats(request):
 
 @api_view(['GET'])
 @permission_classes([IsAdminUser])
+def admin_overdue_enrollments(request):
+    """List grouped enrollments with overdue payments."""
+
+    return Response(build_overdue_enrollments())
+
+
+@api_view(['GET'])
+@permission_classes([IsAdminUser])
 def admin_enrollments_list(request):
     """List all enrollments with filters."""
     
@@ -172,9 +263,11 @@ def admin_enrollments_list(request):
             Q(form_data__nome_completo__icontains=search) |
             Q(form_data__cpf__icontains=search)
         )
-    
-    serializer = EnrollmentSerializer(enrollments, many=True)
-    return Response(serializer.data)
+
+    paginator = AdminEnrollmentPagination()
+    page = paginator.paginate_queryset(enrollments, request)
+    serializer = EnrollmentSerializer(page, many=True)
+    return paginator.get_paginated_response(serializer.data)
 
 
 @api_view(['PATCH'])

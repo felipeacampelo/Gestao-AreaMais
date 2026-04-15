@@ -101,6 +101,30 @@ export interface Payment {
   created_at: string;
 }
 
+export interface PaginatedResponse<T> {
+  count: number;
+  next: string | null;
+  previous: string | null;
+  results: T[];
+}
+
+export interface OverduePaymentSummary {
+  id: number;
+  installment_number: number;
+  amount: string;
+  status: string;
+  due_date: string;
+  paid_at: string | null;
+  days_overdue: number;
+}
+
+export interface OverdueEnrollmentSummary extends Enrollment {
+  overdue_payments: OverduePaymentSummary[];
+  overdue_payments_count: number;
+  total_overdue_amount: string;
+  oldest_due_date: string | null;
+}
+
 // Auth (old - to be removed or migrated)
 // export const login = (email: string, password: string) =>
 //   api.post('/auth/login/', { email, password });
@@ -206,7 +230,17 @@ export const getAdminEnrollments = (params?: {
   product?: number;
   search?: string;
   payment_method?: string;
-}) => api.get('/users/admin/enrollments/', { params });
+  page?: number;
+  page_size?: number;
+}) => api.get<PaginatedResponse<Enrollment>>('/users/admin/enrollments/', { params });
+
+export const getAdminOverdueEnrollments = () =>
+  api.get<{
+    count: number;
+    total_overdue_payments: number;
+    total_overdue_amount: string;
+    results: OverdueEnrollmentSummary[];
+  }>('/users/admin/overdue-enrollments/');
 
 export const updateAdminEnrollment = (id: number, data: { status: string }) =>
   api.patch(`/users/admin/enrollments/${id}/`, data);

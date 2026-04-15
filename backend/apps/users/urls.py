@@ -14,6 +14,7 @@ from .views import (
 )
 from .admin_views import (
     admin_dashboard_stats,
+    admin_overdue_enrollments,
     admin_enrollments_list,
     admin_enrollment_update,
     admin_products_list,
@@ -45,6 +46,7 @@ urlpatterns = [
     
     # Admin endpoints
     path('admin/dashboard/', admin_dashboard_stats, name='admin-dashboard'),
+    path('admin/overdue-enrollments/', admin_overdue_enrollments, name='admin-overdue-enrollments'),
     path('admin/enrollments/', admin_enrollments_list, name='admin-enrollments-list'),
     path('admin/enrollments/<int:pk>/', admin_enrollment_update, name='admin-enrollment-update'),
     path('admin/products/', admin_products_list, name='admin-products-list'),

@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Users, 
@@ -17,7 +17,7 @@ import {
   Eye,
   Settings
 } from 'lucide-react';
-import { getAdminDashboard, getAdminEnrollments } from '../services/api';
+import { getAdminDashboard, getAdminEnrollments, getAdminOverdueEnrollments, type Enrollment, type OverdueEnrollmentSummary } from '../services/api';
 
 interface BatchStats {
   id: number;
@@ -56,21 +56,6 @@ interface DashboardStats {
   batches: BatchStats[];
 }
 
-interface OverduePayment {
-  id: number;
-  installment_number: number;
-  amount: string;
-  due_date: string;
-  days_overdue: number;
-}
-
-interface OverdueEnrollment {
-  enrollment: any;
-  overdue_payments: OverduePayment[];
-  total_overdue_amount: number;
-  oldest_due_date: string;
-}
-
 const parseLocalDate = (value: string) => {
   const [year, month, day] = value.split('-').map(Number);
   return new Date(year, month - 1, day);
@@ -79,13 +64,40 @@ const parseLocalDate = (value: string) => {
 const formatCurrency = (value: number) =>
   value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
+const ENROLLMENTS_PAGE_SIZE = 20;
+
+type EnrollmentListResponse =
+  | Enrollment[]
+  | {
+      count: number;
+      next: string | null;
+      previous: string | null;
+      results: Enrollment[];
+    };
+
+type OverdueSummaryResponse = {
+  count: number;
+  total_overdue_payments: number;
+  total_overdue_amount: string;
+  results: OverdueEnrollmentSummary[];
+};
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats | null>(null);
-  const [allEnrollments, setAllEnrollments] = useState<any[]>([]);
   const [enrollments, setEnrollments] = useState<any[]>([]);
+  const [enrollmentCount, setEnrollmentCount] = useState(0);
+  const [enrollmentPage, setEnrollmentPage] = useState(1);
+  const [enrollmentPageCount, setEnrollmentPageCount] = useState(1);
+  const [overdueSummary, setOverdueSummary] = useState<OverdueSummaryResponse>({
+    count: 0,
+    total_overdue_payments: 0,
+    total_overdue_amount: '0.00',
+    results: [],
+  });
   const [loading, setLoading] = useState(true);
   const [showOverduePayments, setShowOverduePayments] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState('');
@@ -95,91 +107,38 @@ export default function AdminDashboard() {
     loadData();
   }, []);
 
-  const overdueEnrollments = useMemo<OverdueEnrollment[]>(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const unpaidStatuses = new Set(['CREATED', 'PENDING', 'OVERDUE']);
+  const overdueEnrollments = overdueSummary.results;
+  const overduePaymentsCount = overdueSummary.total_overdue_payments;
+  const overdueTotalAmount = Number(overdueSummary.total_overdue_amount || 0);
 
-    const groups = allEnrollments
-      .map((enrollment) => {
-        const overduePayments = (enrollment.payments || [])
-          .filter((payment: any) => {
-            if (!payment?.due_date) return false;
-            if (!unpaidStatuses.has(payment.status)) return false;
+  const buildEnrollmentParams = (page: number) => ({
+    search: searchTerm || undefined,
+    status: statusFilter || undefined,
+    payment_method: paymentMethodFilter || undefined,
+    page,
+    page_size: ENROLLMENTS_PAGE_SIZE,
+  });
 
-            const dueDate = parseLocalDate(payment.due_date);
-            return dueDate < today;
-          })
-          .map((payment: any) => {
-            const dueDate = parseLocalDate(payment.due_date);
-            const daysOverdue = Math.max(
-              0,
-              Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
-            );
+  const applyEnrollmentResponse = (data: EnrollmentListResponse, page: number) => {
+    const results = Array.isArray(data) ? data : data.results || [];
+    const count = Array.isArray(data) ? results.length : data.count || results.length;
 
-            return {
-              id: payment.id,
-              installment_number: payment.installment_number,
-              amount: payment.amount,
-              due_date: payment.due_date,
-              days_overdue: daysOverdue,
-            };
-          })
-          .sort((a: OverduePayment, b: OverduePayment) => b.days_overdue - a.days_overdue);
-
-        if (!overduePayments.length) {
-          return null;
-        }
-
-        const total_overdue_amount = overduePayments.reduce(
-          (sum: number, payment: OverduePayment) => sum + Number(payment.amount || 0),
-          0
-        );
-
-        const oldest_due_date = overduePayments
-          .slice()
-          .sort((a: OverduePayment, b: OverduePayment) => a.days_overdue - b.days_overdue)[0].due_date;
-
-        return {
-          enrollment,
-          overdue_payments: overduePayments,
-          total_overdue_amount,
-          oldest_due_date,
-        };
-      })
-      .filter((item): item is OverdueEnrollment => item !== null)
-      .sort((a, b) => {
-        if (b.overdue_payments.length !== a.overdue_payments.length) {
-          return b.overdue_payments.length - a.overdue_payments.length;
-        }
-        if (b.total_overdue_amount !== a.total_overdue_amount) {
-          return b.total_overdue_amount - a.total_overdue_amount;
-        }
-        return b.oldest_due_date.localeCompare(a.oldest_due_date);
-      });
-
-    return groups;
-  }, [allEnrollments]);
-
-  const overduePaymentsCount = overdueEnrollments.reduce(
-    (sum, item) => sum + item.overdue_payments.length,
-    0
-  );
-
-  const overdueTotalAmount = overdueEnrollments.reduce(
-    (sum, item) => sum + item.total_overdue_amount,
-    0
-  );
+    setEnrollments(results);
+    setEnrollmentCount(count);
+    setEnrollmentPage(page);
+    setEnrollmentPageCount(Math.max(1, Math.ceil(count / ENROLLMENTS_PAGE_SIZE)));
+  };
 
   const loadData = async () => {
     try {
-      const [statsRes, enrollmentsRes] = await Promise.all([
+      const [statsRes, enrollmentsRes, overdueRes] = await Promise.all([
         getAdminDashboard(),
-        getAdminEnrollments()
+        getAdminEnrollments(buildEnrollmentParams(1)),
+        getAdminOverdueEnrollments()
       ]);
       setStats(statsRes.data);
-      setAllEnrollments(enrollmentsRes.data);
-      setEnrollments(enrollmentsRes.data);
+      applyEnrollmentResponse(enrollmentsRes.data, 1);
+      setOverdueSummary(overdueRes.data);
     } catch (error) {
       console.error('Error loading admin data:', error);
     } finally {
@@ -189,61 +148,100 @@ export default function AdminDashboard() {
 
   const handleSearch = async () => {
     try {
-      const res = await getAdminEnrollments({
-        search: searchTerm,
-        status: statusFilter || undefined,
-        payment_method: paymentMethodFilter || undefined
-      });
-      setEnrollments(res.data);
+      const res = await getAdminEnrollments(buildEnrollmentParams(1));
+      applyEnrollmentResponse(res.data, 1);
     } catch (error) {
       console.error('Error searching:', error);
     }
   };
 
-  const exportToCSV = () => {
-    const headers = [
-      'ID', 'Nome Completo', 'Email', 'Telefone', 'CPF', 'RG',
-      'Data Nascimento', 'Tamanho Camiseta', 'Membro Batista Capital',
-      'Igreja', 'Líder PG', 'Produto', 'Lote', 'Status',
-      'Método Pagamento', 'Parcelas', 'Valor Total', 'Desconto',
-      'Valor Final', 'Data Inscrição', 'Data Pagamento'
-    ];
-    const rows = enrollments.map(e => [
-      e.id,
-      e.form_data?.nome_completo || '',
-      e.user_email,
-      e.form_data?.telefone || '',
-      e.form_data?.cpf || '',
-      e.form_data?.rg || '',
-      e.form_data?.data_nascimento || '',
-      e.form_data?.tamanho_camiseta || '',
-      e.form_data?.membro_batista_capital || '',
-      e.form_data?.igreja || '',
-      e.form_data?.lider_pg || '',
-      e.product?.name || '',
-      e.batch?.name || '',
-      e.status,
-      e.payment_method === 'PIX_CASH' ? 'PIX à Vista' : 
-      e.payment_method === 'PIX_INSTALLMENT' ? 'PIX Parcelado' : 
-      e.payment_method === 'CREDIT_CARD' ? 'Cartão de Crédito' : '',
-      e.installments || '',
-      e.total_amount || '',
-      e.discount_amount || '',
-      e.final_amount,
-      new Date(e.created_at).toLocaleDateString('pt-BR'),
-      e.paid_at ? new Date(e.paid_at).toLocaleDateString('pt-BR') : ''
-    ]);
+  const handlePageChange = async (page: number) => {
+    if (page < 1 || page > enrollmentPageCount) {
+      return;
+    }
 
-    const csvContent = [
-      headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
-    ].join('\n');
+    try {
+      const res = await getAdminEnrollments(buildEnrollmentParams(page));
+      applyEnrollmentResponse(res.data, page);
+    } catch (error) {
+      console.error('Error loading page:', error);
+    }
+  };
 
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `inscricoes_${new Date().toISOString().split('T')[0]}.csv`;
-    link.click();
+  const exportToCSV = async () => {
+    setExporting(true);
+
+    try {
+      const filters = buildEnrollmentParams(1);
+      let page = 1;
+      let allEnrollments: Enrollment[] = [];
+
+      while (true) {
+        const response = await getAdminEnrollments({
+          ...filters,
+          page,
+          page_size: 100,
+        });
+
+        const data = response.data;
+        const results = Array.isArray(data) ? data : data.results || [];
+        allEnrollments = allEnrollments.concat(results);
+
+        if (Array.isArray(data) || !data.next || results.length === 0) {
+          break;
+        }
+
+        page += 1;
+      }
+
+      const headers = [
+        'ID', 'Nome Completo', 'Email', 'Telefone', 'CPF', 'RG',
+        'Data Nascimento', 'Tamanho Camiseta', 'Membro Batista Capital',
+        'Igreja', 'Líder PG', 'Produto', 'Lote', 'Status',
+        'Método Pagamento', 'Parcelas', 'Valor Total', 'Desconto',
+        'Valor Final', 'Data Inscrição', 'Data Pagamento'
+      ];
+      const rows = allEnrollments.map(e => [
+        e.id,
+        e.form_data?.nome_completo || '',
+        e.user_email,
+        e.form_data?.telefone || '',
+        e.form_data?.cpf || '',
+        e.form_data?.rg || '',
+        e.form_data?.data_nascimento || '',
+        e.form_data?.tamanho_camiseta || '',
+        e.form_data?.membro_batista_capital || '',
+        e.form_data?.igreja || '',
+        e.form_data?.lider_pg || '',
+        e.product?.name || '',
+        e.batch?.name || '',
+        e.status,
+        e.payment_method === 'PIX_CASH' ? 'PIX à Vista' :
+        e.payment_method === 'PIX_INSTALLMENT' ? 'PIX Parcelado' :
+        e.payment_method === 'CREDIT_CARD' ? 'Cartão de Crédito' : '',
+        e.installments || '',
+        e.total_amount || '',
+        e.discount_amount || '',
+        e.final_amount,
+        new Date(e.created_at).toLocaleDateString('pt-BR'),
+        e.paid_at ? new Date(e.paid_at).toLocaleDateString('pt-BR') : ''
+      ]);
+
+      const csvContent = [
+        headers.join(','),
+        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = `inscricoes_${new Date().toISOString().split('T')[0]}.csv`;
+      link.click();
+    } catch (error) {
+      console.error('Error exporting CSV:', error);
+    } finally {
+      setExporting(false);
+    }
   };
 
   if (loading) {
@@ -276,10 +274,12 @@ export default function AdminDashboard() {
           <div className="flex gap-2 sm:gap-3">
             <button
               onClick={exportToCSV}
-              className="flex items-center justify-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm sm:text-base"
+              disabled={exporting}
+              className="flex items-center justify-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm sm:text-base disabled:opacity-60 disabled:cursor-not-allowed"
             >
               <Download className="w-4 h-4" />
-              <span className="hidden sm:inline">Exportar</span> CSV
+              <span className="hidden sm:inline">{exporting ? 'Exportando CSV' : 'Exportar CSV'}</span>
+              <span className="sm:hidden">{exporting ? '...' : 'CSV'}</span>
             </button>
             <a
               href="https://gestao-areamais-production.up.railway.app/admin"
@@ -423,25 +423,25 @@ export default function AdminDashboard() {
               ) : (
                 <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                   {overdueEnrollments.map((item) => {
-                    const name = item.enrollment.form_data?.nome_completo || item.enrollment.user_email || 'Sem nome';
+                    const name = item.form_data?.nome_completo || item.user_email || 'Sem nome';
                     return (
                       <div
-                        key={item.enrollment.id}
+                        key={item.id}
                         className="rounded-xl border border-red-200 bg-red-50/50 p-4 sm:p-5"
                       >
                         <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                           <div className="min-w-0">
                             <p className="font-semibold text-base sm:text-lg truncate">{name}</p>
                             <p className="text-sm text-gray-600">
-                              {item.enrollment.user_email} • {item.enrollment.product?.name || item.enrollment.product_name || 'Produto'}
+                              {item.user_email} • {item.product?.name || item.product_name || 'Produto'}
                             </p>
                             <p className="text-sm text-gray-600">
-                              Lote: {item.enrollment.batch?.name || item.enrollment.batch_name || 'N/A'}
+                              Lote: {item.batch?.name || item.batch_name || 'N/A'}
                             </p>
                           </div>
 
                           <button
-                            onClick={() => setSelectedEnrollment(item.enrollment)}
+                            onClick={() => setSelectedEnrollment(item)}
                             className="px-3 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors"
                             style={{ backgroundColor: 'rgb(165, 44, 240)', color: 'white' }}
                             onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgb(145, 24, 220)'}
@@ -451,19 +451,19 @@ export default function AdminDashboard() {
                           </button>
                         </div>
 
-                        <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
-                          <div className="rounded-lg bg-white p-3 border">
-                            <p className="text-gray-500">Parcelas atrasadas</p>
-                            <p className="font-semibold">{item.overdue_payments.length}</p>
-                          </div>
-                          <div className="rounded-lg bg-white p-3 border">
-                            <p className="text-gray-500">Total em atraso</p>
-                            <p className="font-semibold">R$ {formatCurrency(item.total_overdue_amount)}</p>
-                          </div>
-                          <div className="rounded-lg bg-white p-3 border col-span-2 sm:col-span-1">
-                            <p className="text-gray-500">Mais antiga</p>
-                            <p className="font-semibold">
-                              {parseLocalDate(item.oldest_due_date).toLocaleDateString('pt-BR')}
+                    <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                      <div className="rounded-lg bg-white p-3 border">
+                        <p className="text-gray-500">Parcelas atrasadas</p>
+                        <p className="font-semibold">{item.overdue_payments_count}</p>
+                      </div>
+                      <div className="rounded-lg bg-white p-3 border">
+                        <p className="text-gray-500">Total em atraso</p>
+                        <p className="font-semibold">R$ {formatCurrency(Number(item.total_overdue_amount || 0))}</p>
+                      </div>
+                      <div className="rounded-lg bg-white p-3 border col-span-2 sm:col-span-1">
+                        <p className="text-gray-500">Mais antiga</p>
+                        <p className="font-semibold">
+                          {item.oldest_due_date ? parseLocalDate(item.oldest_due_date).toLocaleDateString('pt-BR') : '-'}
                             </p>
                           </div>
                         </div>
@@ -568,7 +568,12 @@ export default function AdminDashboard() {
         {/* Inscrições List */}
         <div className="bg-white rounded-xl shadow-lg p-3 sm:p-6">
           <div className="flex flex-col gap-4 mb-4 sm:mb-6">
-            <h2 className="text-lg sm:text-2xl font-bold">Inscrições</h2>
+            <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+              <h2 className="text-lg sm:text-2xl font-bold">Inscrições</h2>
+              <p className="text-sm text-gray-600">
+                {enrollmentCount} inscrições no total
+              </p>
+            </div>
             
             {/* Filters */}
             <div className="flex flex-col sm:flex-row gap-2 sm:gap-4">
@@ -738,6 +743,32 @@ export default function AdminDashboard() {
               </tbody>
             </table>
           </div>
+
+          {enrollmentCount > 0 && (
+            <div className="mt-4 sm:mt-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+              <p className="text-sm text-gray-600">
+                Página {enrollmentPage} de {enrollmentPageCount}
+              </p>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => handlePageChange(enrollmentPage - 1)}
+                  disabled={enrollmentPage <= 1}
+                  className="px-3 py-2 rounded-lg border text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Anterior
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handlePageChange(enrollmentPage + 1)}
+                  disabled={enrollmentPage >= enrollmentPageCount}
+                  className="px-3 py-2 rounded-lg border text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  Próxima
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Modal de Detalhes */}

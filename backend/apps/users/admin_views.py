@@ -259,7 +259,6 @@ def admin_enrollments_list(request):
     
     if search:
         enrollments = enrollments.filter(
-            Q(user_email__icontains=search) |
             Q(user__first_name__icontains=search) |
             Q(user__last_name__icontains=search) |
             Q(user__email__icontains=search) |

@@ -15,7 +15,8 @@ import {
   Filter,
   Download,
   Eye,
-  Settings
+  Settings,
+  ArrowUpDown
 } from 'lucide-react';
 import { getAdminDashboard, getAdminEnrollments, getAdminOverdueEnrollments, type Enrollment, type OverdueEnrollmentSummary } from '../services/api';
 
@@ -73,6 +74,40 @@ const formatCpfForCsv = (cpf: unknown) => {
   return text ? `="${text}"` : '';
 };
 
+type SortKey = 'id' | 'nome' | 'email' | 'telefone' | 'status' | 'payment_method' | 'valor';
+type SortDirection = 'asc' | 'desc';
+
+const compareEnrollmentValues = (a: any, b: any, key: SortKey) => {
+  switch (key) {
+    case 'id':
+      return Number(a.id || 0) - Number(b.id || 0);
+    case 'nome':
+      return String(a.form_data?.nome_completo || '').localeCompare(String(b.form_data?.nome_completo || ''), 'pt-BR');
+    case 'email':
+      return String(a.user_email || '').localeCompare(String(b.user_email || ''), 'pt-BR');
+    case 'telefone':
+      return String(a.form_data?.telefone || '').localeCompare(String(b.form_data?.telefone || ''), 'pt-BR');
+    case 'status':
+      return String(a.status || '').localeCompare(String(b.status || ''), 'pt-BR');
+    case 'payment_method':
+      return String(a.payment_method || '').localeCompare(String(b.payment_method || ''), 'pt-BR');
+    case 'valor':
+      return Number(a.final_amount || 0) - Number(b.final_amount || 0);
+    default:
+      return 0;
+  }
+};
+
+const sortIndicator = (active: boolean, direction: SortDirection) => {
+  if (!active) {
+    return <ArrowUpDown className="w-3 h-3 lg:w-4 lg:h-4" />;
+  }
+
+  return direction === 'asc'
+    ? <ChevronUp className="w-3 h-3 lg:w-4 lg:h-4" />
+    : <ChevronDown className="w-3 h-3 lg:w-4 lg:h-4" />;
+};
+
 type EnrollmentListResponse =
   | Enrollment[]
   | {
@@ -109,6 +144,9 @@ export default function AdminDashboard() {
   const [statusFilter, setStatusFilter] = useState('');
   const [paymentMethodFilter, setPaymentMethodFilter] = useState('');
   const [selectedEnrollment, setSelectedEnrollment] = useState<any>(null);
+  const [sortKey, setSortKey] = useState<SortKey>('id');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('desc');
+  const [searching, setSearching] = useState(false);
   const hasMountedRef = useRef(false);
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -164,12 +202,15 @@ export default function AdminDashboard() {
 
   const handleSearch = async () => {
     clearSearchDebounce();
+    setSearching(true);
 
     try {
       const res = await getAdminEnrollments(buildEnrollmentParams(1));
       applyEnrollmentResponse(res.data, 1);
     } catch (error) {
       console.error('Error searching:', error);
+    } finally {
+      setSearching(false);
     }
   };
 
@@ -178,12 +219,26 @@ export default function AdminDashboard() {
       return;
     }
 
+    setSearching(true);
+
     try {
       const res = await getAdminEnrollments(buildEnrollmentParams(page));
       applyEnrollmentResponse(res.data, page);
     } catch (error) {
       console.error('Error loading page:', error);
+    } finally {
+      setSearching(false);
     }
+  };
+
+  const handleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
+      return;
+    }
+
+    setSortKey(key);
+    setSortDirection('asc');
   };
 
   useEffect(() => {
@@ -199,6 +254,13 @@ export default function AdminDashboard() {
 
     return clearSearchDebounce;
   }, [searchTerm, statusFilter, paymentMethodFilter]);
+
+  const visibleEnrollments = [...enrollments].sort((a, b) => {
+    const comparison = compareEnrollmentValues(a, b, sortKey);
+    return sortDirection === 'asc' ? comparison : -comparison;
+  });
+
+  const isBusy = loading || searching;
 
   const exportToCSV = async () => {
     setExporting(true);
@@ -602,9 +664,15 @@ export default function AdminDashboard() {
           <div className="flex flex-col gap-4 mb-4 sm:mb-6">
             <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
               <h2 className="text-lg sm:text-2xl font-bold">Inscrições</h2>
-              <p className="text-sm text-gray-600">
-                {enrollmentCount} inscrições no total
-              </p>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <p>{enrollmentCount} inscrições no total</p>
+                {isBusy && (
+                  <span className="inline-flex items-center gap-2 rounded-full bg-purple/10 px-2 py-1 text-xs font-medium text-purple">
+                    <span className="h-2 w-2 animate-pulse rounded-full bg-purple" />
+                    Buscando...
+                  </span>
+                )}
+              </div>
             </div>
             
             {/* Filters */}
@@ -622,6 +690,7 @@ export default function AdminDashboard() {
                   placeholder="Buscar..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
+                  disabled={isBusy}
                   className="w-full pl-9 sm:pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple text-sm sm:text-base text-gray-900 bg-white"
                 />
               </div>
@@ -630,6 +699,7 @@ export default function AdminDashboard() {
                 <select
                   value={statusFilter}
                   onChange={(e) => setStatusFilter(e.target.value)}
+                  disabled={isBusy}
                   className="flex-1 sm:flex-none px-2 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple text-sm sm:text-base text-gray-900 bg-white"
                 >
                   <option value="">Status</option>
@@ -641,6 +711,7 @@ export default function AdminDashboard() {
                 <select
                   value={paymentMethodFilter}
                   onChange={(e) => setPaymentMethodFilter(e.target.value)}
+                  disabled={isBusy}
                   className="flex-1 sm:flex-none px-2 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple text-sm sm:text-base text-gray-900 bg-white"
                 >
                   <option value="">Forma</option>
@@ -651,10 +722,11 @@ export default function AdminDashboard() {
                 
                 <button
                   type="submit"
+                  disabled={isBusy}
                   className="btn-primary flex items-center justify-center gap-1 sm:gap-2 px-3 sm:px-4"
                 >
                   <Filter className="w-4 h-4" />
-                  <span className="hidden sm:inline">Filtrar</span>
+                  <span className="hidden sm:inline">{isBusy ? 'Buscando...' : 'Filtrar'}</span>
                 </button>
               </div>
             </form>
@@ -662,7 +734,7 @@ export default function AdminDashboard() {
 
           {/* Mobile Cards View */}
           <div className="sm:hidden space-y-3">
-            {enrollments.map((enrollment) => (
+            {visibleEnrollments.map((enrollment) => (
               <div 
                 key={enrollment.id} 
                 className="border rounded-lg p-3 hover:bg-gray-50"
@@ -706,19 +778,54 @@ export default function AdminDashboard() {
             <table className="w-full">
               <thead>
                 <tr className="border-b">
-                  <th className="text-left py-3 px-2 lg:px-4 font-semibold text-sm">ID</th>
-                  <th className="text-left py-3 px-2 lg:px-4 font-semibold text-sm">Nome</th>
-                  <th className="text-left py-3 px-2 lg:px-4 font-semibold text-sm hidden lg:table-cell">Email</th>
-                  <th className="text-left py-3 px-2 lg:px-4 font-semibold text-sm hidden xl:table-cell">Telefone</th>
+                  <th className="text-left py-3 px-2 lg:px-4 font-semibold text-sm">
+                    <button type="button" onClick={() => handleSort('id')} className="inline-flex items-center gap-1">
+                      ID
+                      {sortIndicator(sortKey === 'id', sortDirection)}
+                    </button>
+                  </th>
+                  <th className="text-left py-3 px-2 lg:px-4 font-semibold text-sm">
+                    <button type="button" onClick={() => handleSort('nome')} className="inline-flex items-center gap-1">
+                      Nome
+                      {sortIndicator(sortKey === 'nome', sortDirection)}
+                    </button>
+                  </th>
+                  <th className="text-left py-3 px-2 lg:px-4 font-semibold text-sm hidden lg:table-cell">
+                    <button type="button" onClick={() => handleSort('email')} className="inline-flex items-center gap-1">
+                      Email
+                      {sortIndicator(sortKey === 'email', sortDirection)}
+                    </button>
+                  </th>
+                  <th className="text-left py-3 px-2 lg:px-4 font-semibold text-sm hidden xl:table-cell">
+                    <button type="button" onClick={() => handleSort('telefone')} className="inline-flex items-center gap-1">
+                      Telefone
+                      {sortIndicator(sortKey === 'telefone', sortDirection)}
+                    </button>
+                  </th>
                   <th className="text-left py-3 px-2 lg:px-4 font-semibold text-sm hidden xl:table-cell">Camiseta</th>
-                  <th className="text-left py-3 px-2 lg:px-4 font-semibold text-sm">Status</th>
-                  <th className="text-left py-3 px-2 lg:px-4 font-semibold text-sm hidden lg:table-cell">Pagamento</th>
-                  <th className="text-left py-3 px-2 lg:px-4 font-semibold text-sm">Valor</th>
+                  <th className="text-left py-3 px-2 lg:px-4 font-semibold text-sm">
+                    <button type="button" onClick={() => handleSort('status')} className="inline-flex items-center gap-1">
+                      Status
+                      {sortIndicator(sortKey === 'status', sortDirection)}
+                    </button>
+                  </th>
+                  <th className="text-left py-3 px-2 lg:px-4 font-semibold text-sm hidden lg:table-cell">
+                    <button type="button" onClick={() => handleSort('payment_method')} className="inline-flex items-center gap-1">
+                      Pagamento
+                      {sortIndicator(sortKey === 'payment_method', sortDirection)}
+                    </button>
+                  </th>
+                  <th className="text-left py-3 px-2 lg:px-4 font-semibold text-sm">
+                    <button type="button" onClick={() => handleSort('valor')} className="inline-flex items-center gap-1">
+                      Valor
+                      {sortIndicator(sortKey === 'valor', sortDirection)}
+                    </button>
+                  </th>
                   <th className="text-left py-3 px-2 lg:px-4 font-semibold text-sm">Ações</th>
                 </tr>
               </thead>
               <tbody>
-                {enrollments.map((enrollment) => (
+                {visibleEnrollments.map((enrollment) => (
                   <tr key={enrollment.id} className="border-b hover:bg-gray-50">
                     <td className="py-3 px-2 lg:px-4 text-sm">#{enrollment.id}</td>
                     <td className="py-3 px-2 lg:px-4 font-medium text-sm">{enrollment.form_data?.nome_completo || '-'}</td>

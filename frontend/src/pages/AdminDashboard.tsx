@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Users, 
@@ -7,6 +7,7 @@ import {
   TrendingUp,
   CheckCircle,
   Clock,
+  AlertTriangle,
   ArrowLeft,
   Search,
   Filter,
@@ -53,9 +54,33 @@ interface DashboardStats {
   batches: BatchStats[];
 }
 
+interface OverduePayment {
+  id: number;
+  installment_number: number;
+  amount: string;
+  due_date: string;
+  days_overdue: number;
+}
+
+interface OverdueEnrollment {
+  enrollment: any;
+  overdue_payments: OverduePayment[];
+  total_overdue_amount: number;
+  oldest_due_date: string;
+}
+
+const parseLocalDate = (value: string) => {
+  const [year, month, day] = value.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
+const formatCurrency = (value: number) =>
+  value.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [allEnrollments, setAllEnrollments] = useState<any[]>([]);
   const [enrollments, setEnrollments] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -67,6 +92,82 @@ export default function AdminDashboard() {
     loadData();
   }, []);
 
+  const overdueEnrollments = useMemo<OverdueEnrollment[]>(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const unpaidStatuses = new Set(['CREATED', 'PENDING', 'OVERDUE']);
+
+    const groups = allEnrollments
+      .map((enrollment) => {
+        const overduePayments = (enrollment.payments || [])
+          .filter((payment: any) => {
+            if (!payment?.due_date) return false;
+            if (!unpaidStatuses.has(payment.status)) return false;
+
+            const dueDate = parseLocalDate(payment.due_date);
+            return dueDate < today;
+          })
+          .map((payment: any) => {
+            const dueDate = parseLocalDate(payment.due_date);
+            const daysOverdue = Math.max(
+              0,
+              Math.floor((today.getTime() - dueDate.getTime()) / (1000 * 60 * 60 * 24))
+            );
+
+            return {
+              id: payment.id,
+              installment_number: payment.installment_number,
+              amount: payment.amount,
+              due_date: payment.due_date,
+              days_overdue: daysOverdue,
+            };
+          })
+          .sort((a: OverduePayment, b: OverduePayment) => b.days_overdue - a.days_overdue);
+
+        if (!overduePayments.length) {
+          return null;
+        }
+
+        const total_overdue_amount = overduePayments.reduce(
+          (sum: number, payment: OverduePayment) => sum + Number(payment.amount || 0),
+          0
+        );
+
+        const oldest_due_date = overduePayments
+          .slice()
+          .sort((a: OverduePayment, b: OverduePayment) => a.days_overdue - b.days_overdue)[0].due_date;
+
+        return {
+          enrollment,
+          overdue_payments: overduePayments,
+          total_overdue_amount,
+          oldest_due_date,
+        };
+      })
+      .filter((item): item is OverdueEnrollment => item !== null)
+      .sort((a, b) => {
+        if (b.overdue_payments.length !== a.overdue_payments.length) {
+          return b.overdue_payments.length - a.overdue_payments.length;
+        }
+        if (b.total_overdue_amount !== a.total_overdue_amount) {
+          return b.total_overdue_amount - a.total_overdue_amount;
+        }
+        return b.oldest_due_date.localeCompare(a.oldest_due_date);
+      });
+
+    return groups;
+  }, [allEnrollments]);
+
+  const overduePaymentsCount = overdueEnrollments.reduce(
+    (sum, item) => sum + item.overdue_payments.length,
+    0
+  );
+
+  const overdueTotalAmount = overdueEnrollments.reduce(
+    (sum, item) => sum + item.total_overdue_amount,
+    0
+  );
+
   const loadData = async () => {
     try {
       const [statsRes, enrollmentsRes] = await Promise.all([
@@ -74,6 +175,7 @@ export default function AdminDashboard() {
         getAdminEnrollments()
       ]);
       setStats(statsRes.data);
+      setAllEnrollments(enrollmentsRes.data);
       setEnrollments(enrollmentsRes.data);
     } catch (error) {
       console.error('Error loading admin data:', error);
@@ -266,6 +368,113 @@ export default function AdminDashboard() {
             </div>
           </div>
         )}
+
+        {/* Pagamentos em atraso */}
+        <div className="bg-white rounded-xl shadow-lg p-3 sm:p-6 mb-6 sm:mb-8">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <div>
+              <h2 className="text-lg sm:text-xl font-bold flex items-center gap-2">
+                <AlertTriangle className="w-5 h-5 text-red-600" />
+                Pagamentos em atraso
+              </h2>
+              <p className="text-sm text-gray-600">
+                Inscrições com parcelas vencidas e ainda não pagas.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2 sm:gap-3 text-sm">
+              <span className="px-3 py-1 rounded-full bg-red-50 text-red-700 font-medium">
+                {overdueEnrollments.length} inscrições
+              </span>
+              <span className="px-3 py-1 rounded-full bg-red-50 text-red-700 font-medium">
+                {overduePaymentsCount} parcelas
+              </span>
+              <span className="px-3 py-1 rounded-full bg-red-50 text-red-700 font-medium">
+                R$ {formatCurrency(overdueTotalAmount)}
+              </span>
+            </div>
+          </div>
+
+          {overdueEnrollments.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-green-200 bg-green-50 px-4 py-6 text-green-800">
+              Nenhum pagamento está em atraso no momento.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+              {overdueEnrollments.map((item) => {
+                const name = item.enrollment.form_data?.nome_completo || item.enrollment.user_email || 'Sem nome';
+                return (
+                  <div
+                    key={item.enrollment.id}
+                    className="rounded-xl border border-red-200 bg-red-50/50 p-4 sm:p-5"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="font-semibold text-base sm:text-lg truncate">{name}</p>
+                        <p className="text-sm text-gray-600">
+                          {item.enrollment.user_email} • {item.enrollment.product?.name || item.enrollment.product_name || 'Produto'}
+                        </p>
+                        <p className="text-sm text-gray-600">
+                          Lote: {item.enrollment.batch?.name || item.enrollment.batch_name || 'N/A'}
+                        </p>
+                      </div>
+
+                      <button
+                        onClick={() => setSelectedEnrollment(item.enrollment)}
+                        className="px-3 py-2 rounded-lg font-medium text-sm whitespace-nowrap transition-colors"
+                        style={{ backgroundColor: 'rgb(165, 44, 240)', color: 'white' }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'rgb(145, 24, 220)'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'rgb(165, 44, 240)'}
+                      >
+                        Ver inscrição
+                      </button>
+                    </div>
+
+                    <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
+                      <div className="rounded-lg bg-white p-3 border">
+                        <p className="text-gray-500">Parcelas atrasadas</p>
+                        <p className="font-semibold">{item.overdue_payments.length}</p>
+                      </div>
+                      <div className="rounded-lg bg-white p-3 border">
+                        <p className="text-gray-500">Total em atraso</p>
+                        <p className="font-semibold">R$ {formatCurrency(item.total_overdue_amount)}</p>
+                      </div>
+                      <div className="rounded-lg bg-white p-3 border col-span-2 sm:col-span-1">
+                        <p className="text-gray-500">Mais antiga</p>
+                        <p className="font-semibold">
+                          {parseLocalDate(item.oldest_due_date).toLocaleDateString('pt-BR')}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 space-y-2">
+                      {item.overdue_payments.map((payment) => (
+                        <div
+                          key={payment.id}
+                          className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 rounded-lg bg-white border px-3 py-2"
+                        >
+                          <div>
+                            <p className="font-medium">
+                              Parcela {payment.installment_number}
+                            </p>
+                            <p className="text-sm text-gray-600">
+                              Venceu em {parseLocalDate(payment.due_date).toLocaleDateString('pt-BR')}
+                            </p>
+                          </div>
+                          <div className="text-left sm:text-right">
+                            <p className="font-semibold">R$ {payment.amount}</p>
+                            <p className="text-sm text-red-700">
+                              {payment.days_overdue} {payment.days_overdue === 1 ? 'dia' : 'dias'} em atraso
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
 
         {/* Inscrições por Lote */}
         {stats && stats.batches && stats.batches.length > 0 && (

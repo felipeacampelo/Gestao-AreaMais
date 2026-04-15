@@ -382,7 +382,9 @@ export default function AdminDashboard() {
             <div className="flex items-center gap-2 sm:gap-3 min-w-0">
               <AlertTriangle className="w-5 h-5 text-red-600 flex-shrink-0" />
               <div className="min-w-0">
-                <h2 className="text-lg sm:text-xl font-bold truncate">Pagamentos em atraso</h2>
+                <h2 className="text-sm sm:text-xl font-bold leading-tight whitespace-normal">
+                  Pagamentos em atraso
+                </h2>
                 <p className="text-sm text-gray-600 hidden sm:block">
                   Clique na seta para ver as inscrições e parcelas atrasadas.
                 </p>

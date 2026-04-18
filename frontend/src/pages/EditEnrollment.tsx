@@ -132,7 +132,9 @@ export default function EditEnrollment() {
     setLoading(true);
 
     try {
-      const updateData: any = { form_data: formData };
+      const updateData: any = hasConfirmedPayments
+        ? { form_data: { observacoes: formData.observacoes } }
+        : { form_data: formData };
       
       // Add coupon if applied
       if (couponApplied && couponCode) {

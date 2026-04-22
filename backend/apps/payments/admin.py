@@ -2,6 +2,7 @@
 Payments admin configuration.
 """
 from django.contrib import admin
+from django.contrib import messages
 from django.utils.translation import gettext_lazy as _
 from django.utils.html import format_html
 from django.urls import reverse
@@ -135,7 +136,15 @@ class PaymentAdmin(admin.ModelAdmin):
 
         for index, payment in enumerate(payments):
             due_date = timezone.now().date() + timedelta(days=3 + 30 * index)
-            service.recreate_pix_payment(payment, due_date=due_date)
+            try:
+                service.recreate_pix_payment(payment, due_date=due_date)
+            except Exception as exc:
+                self.message_user(
+                    request,
+                    f'Erro ao recriar o PIX da parcela {payment.installment_number}: {exc}',
+                    level=messages.ERROR
+                )
+                return
             recreated += 1
 
         enrollment = payments.first().enrollment

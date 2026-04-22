@@ -311,6 +311,13 @@ class PaymentService:
         if due_date is None:
             due_date = timezone.now().date() + timedelta(days=due_days)
 
+        # Reissues need a fresh external reference so the gateway does not
+        # confuse a new charge with the previously cancelled installment.
+        external_reference = (
+            f'{enrollment.id}-{payment.installment_number}-'
+            f'reissue-{timezone.now().strftime("%Y%m%d%H%M%S")}'
+        )
+
         asaas_payment, pix_data = self._create_pix_charge(
             enrollment=enrollment,
             amount=payment.amount,
@@ -319,7 +326,7 @@ class PaymentService:
                 f'Inscrição - {enrollment.product.name} - '
                 f'Parcela {payment.installment_number}/{enrollment.installments}'
             ),
-            external_reference=f'{enrollment.id}-{payment.installment_number}'
+            external_reference=external_reference
         )
 
         payment.asaas_payment_id = asaas_payment['id']

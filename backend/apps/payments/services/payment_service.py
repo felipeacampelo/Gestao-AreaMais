@@ -91,6 +91,11 @@ class PaymentService:
         
         return profile.asaas_customer_id
 
+    def _is_invalid_customer_error(self, exc: Exception) -> bool:
+        """Return True when Asaas rejected the customer as removed/invalid."""
+        message = str(exc).lower()
+        return 'invalid_customer' in message or 'cliente removido' in message
+
     def _create_pix_charge(
         self,
         enrollment: Enrollment,
@@ -104,13 +109,33 @@ class PaymentService:
         """
         customer_id = self.ensure_customer_exists(enrollment.user)
 
-        asaas_payment = self.asaas.create_pix_payment(
-            customer_id=customer_id,
-            value=amount,
-            due_date=due_date,
-            description=description,
-            external_reference=external_reference
-        )
+        try:
+            asaas_payment = self.asaas.create_pix_payment(
+                customer_id=customer_id,
+                value=amount,
+                due_date=due_date,
+                description=description,
+                external_reference=external_reference
+            )
+        except AsaasAPIException as exc:
+            if not self._is_invalid_customer_error(exc):
+                raise
+
+            # The customer record was removed in Asaas after we resolved the ID.
+            # Clear the cached ID and create a fresh customer before retrying once.
+            profile = enrollment.user.profile
+            profile.asaas_customer_id = None
+            profile.save()
+
+            customer_id = self.ensure_customer_exists(enrollment.user)
+            asaas_payment = self.asaas.create_pix_payment(
+                customer_id=customer_id,
+                value=amount,
+                due_date=due_date,
+                description=description,
+                external_reference=external_reference
+            )
+
         pix_data = self.asaas.get_pix_qrcode(asaas_payment['id'])
         return asaas_payment, pix_data
 

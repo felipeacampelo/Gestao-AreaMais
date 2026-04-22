@@ -1,6 +1,7 @@
 """
 Enrollments admin configuration.
 """
+from datetime import timedelta
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 from django.utils.html import format_html
@@ -42,7 +43,7 @@ class EnrollmentAdmin(admin.ModelAdmin):
         }),
     )
     
-    actions = ['mark_as_paid', 'cancel_enrollments', 'export_to_csv']
+    actions = ['mark_as_paid', 'cancel_enrollments', 'export_to_csv', 'reissue_cancelled_pix_installments']
     
     def user_info(self, obj):
         """Display user information with link."""
@@ -160,6 +161,35 @@ class EnrollmentAdmin(admin.ModelAdmin):
         
         return response
     export_to_csv.short_description = _('Exportar para CSV')
+
+    def reissue_cancelled_pix_installments(self, request, queryset):
+        """Recreate cancelled PIX installments for the selected enrollments."""
+        from apps.payments.services import PaymentService
+
+        service = PaymentService()
+        recreated = 0
+        skipped = 0
+
+        for enrollment in queryset:
+            cancelled_payments = enrollment.payments.filter(status='CANCELLED').order_by('installment_number')
+            if not cancelled_payments.exists():
+                skipped += 1
+                continue
+
+            for index, payment in enumerate(cancelled_payments):
+                due_date = timezone.now().date() + timedelta(days=3 + 30 * index)
+                service.recreate_pix_payment(payment, due_date=due_date)
+                recreated += 1
+
+            if enrollment.status != 'PAID':
+                enrollment.status = 'PENDING_PAYMENT'
+                enrollment.save(update_fields=['status', 'updated_at'])
+
+        self.message_user(
+            request,
+            f'{recreated} cobrança(s) PIX recriada(s). {skipped} inscrição(ões) sem parcelas canceladas foram ignoradas.'
+        )
+    reissue_cancelled_pix_installments.short_description = _('Recriar parcelas PIX canceladas')
 
 
 @admin.register(Coupon)

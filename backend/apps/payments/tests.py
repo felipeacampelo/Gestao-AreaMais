@@ -1,6 +1,6 @@
 from decimal import Decimal
 from datetime import timedelta
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
 from django.contrib.auth import get_user_model
 from django.urls import reverse
@@ -203,3 +203,40 @@ class PaymentSecurityTests(APITestCase):
             )
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    @patch('apps.payments.services.payment_service.AsaasService')
+    def test_recreate_pix_payment_updates_cancelled_payment(self, mock_asaas_class):
+        from apps.payments.services import PaymentService
+
+        cancelled_payment = Payment.objects.create(
+            enrollment=self.owner_enrollment,
+            asaas_payment_id='pay-owner-cancelled',
+            installment_number=2,
+            amount=Decimal('20.00'),
+            status='CANCELLED',
+            due_date=timezone.now().date(),
+        )
+
+        asaas_instance = mock_asaas_class.return_value
+        asaas_instance.create_pix_payment.return_value = {
+            'id': 'pay-owner-reissued',
+            'invoiceUrl': 'https://example.com/invoice',
+        }
+        asaas_instance.get_pix_qrcode.return_value = {
+            'encodedImage': 'base64-qr',
+            'payload': 'pix-copy-paste',
+        }
+
+        service = PaymentService()
+        service.ensure_customer_exists = MagicMock(return_value='cus_test_123')
+
+        recreated = service.recreate_pix_payment(cancelled_payment, due_days=3)
+
+        self.assertEqual(recreated.id, cancelled_payment.id)
+        self.assertEqual(recreated.asaas_payment_id, 'pay-owner-reissued')
+        self.assertEqual(recreated.status, 'PENDING')
+        self.assertEqual(recreated.payment_url, 'https://example.com/invoice')
+        self.assertEqual(recreated.pix_qr_code, 'base64-qr')
+        self.assertEqual(recreated.pix_copy_paste, 'pix-copy-paste')
+        self.assertEqual(recreated.due_date, timezone.now().date() + timedelta(days=3))
+        self.assertEqual(recreated.raw_webhook_data['created']['id'], 'pay-owner-reissued')

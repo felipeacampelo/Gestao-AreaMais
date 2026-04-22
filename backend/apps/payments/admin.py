@@ -5,6 +5,8 @@ from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
 from django.utils.html import format_html
 from django.urls import reverse
+from django.utils import timezone
+from datetime import timedelta
 from .models import Payment
 
 
@@ -42,7 +44,7 @@ class PaymentAdmin(admin.ModelAdmin):
         }),
     )
     
-    actions = ['mark_as_confirmed', 'cancel_payments']
+    actions = ['mark_as_confirmed', 'cancel_payments', 'reissue_selected_pix_payments']
     
     def enrollment_link(self, obj):
         """Display enrollment with link."""
@@ -113,3 +115,33 @@ class PaymentAdmin(admin.ModelAdmin):
         updated = queryset.filter(status__in=['CREATED', 'PENDING']).update(status='CANCELLED')
         self.message_user(request, f'{updated} pagamento(s) cancelado(s).')
     cancel_payments.short_description = _('Cancelar pagamentos')
+
+    def reissue_selected_pix_payments(self, request, queryset):
+        """Recreate selected cancelled PIX payments with fresh QR codes."""
+        from apps.payments.services import PaymentService
+
+        payments = queryset.filter(status='CANCELLED').order_by('enrollment_id', 'installment_number')
+        if not payments.exists():
+            self.message_user(request, 'Nenhum pagamento cancelado foi selecionado.')
+            return
+
+        enrollment_ids = list(payments.values_list('enrollment_id', flat=True).distinct())
+        if len(enrollment_ids) != 1:
+            self.message_user(request, 'Selecione apenas pagamentos da mesma inscrição.')
+            return
+
+        service = PaymentService()
+        recreated = 0
+
+        for index, payment in enumerate(payments):
+            due_date = timezone.now().date() + timedelta(days=3 + 30 * index)
+            service.recreate_pix_payment(payment, due_date=due_date)
+            recreated += 1
+
+        enrollment = payments.first().enrollment
+        if enrollment.status != 'PAID':
+            enrollment.status = 'PENDING_PAYMENT'
+            enrollment.save(update_fields=['status', 'updated_at'])
+
+        self.message_user(request, f'{recreated} cobrança(s) PIX recriada(s) para a inscrição #{enrollment.id}.')
+    reissue_selected_pix_payments.short_description = _('Recriar PIX selecionados')

@@ -90,6 +90,63 @@ class PaymentService:
         profile.save()
         
         return profile.asaas_customer_id
+
+    def _create_pix_charge(
+        self,
+        enrollment: Enrollment,
+        amount: Decimal,
+        due_date,
+        description: str,
+        external_reference: str
+    ) -> tuple[Dict, Dict]:
+        """
+        Create a PIX charge in Asaas and return the raw payment and QR data.
+        """
+        customer_id = self.ensure_customer_exists(enrollment.user)
+
+        asaas_payment = self.asaas.create_pix_payment(
+            customer_id=customer_id,
+            value=amount,
+            due_date=due_date,
+            description=description,
+            external_reference=external_reference
+        )
+        pix_data = self.asaas.get_pix_qrcode(asaas_payment['id'])
+        return asaas_payment, pix_data
+
+    def _create_pix_payment_record(
+        self,
+        enrollment: Enrollment,
+        amount: Decimal,
+        installment_number: int,
+        due_date,
+        description: str,
+        external_reference: str,
+        status: str = 'PENDING'
+    ) -> Payment:
+        """
+        Create a PIX payment in Asaas and persist the local payment record.
+        """
+        asaas_payment, pix_data = self._create_pix_charge(
+            enrollment=enrollment,
+            amount=amount,
+            due_date=due_date,
+            description=description,
+            external_reference=external_reference
+        )
+
+        return Payment.objects.create(
+            enrollment=enrollment,
+            asaas_payment_id=asaas_payment['id'],
+            installment_number=installment_number,
+            amount=amount,
+            status=status,
+            due_date=due_date,
+            payment_url=asaas_payment.get('invoiceUrl', ''),
+            pix_qr_code=pix_data.get('encodedImage', ''),
+            pix_copy_paste=pix_data.get('payload', ''),
+            raw_webhook_data={'created': asaas_payment}
+        )
     
     @transaction.atomic
     def create_pix_cash_payment(
@@ -107,39 +164,16 @@ class PaymentService:
         Returns:
             Payment instance with PIX QR code
         """
-        # Ensure customer exists
-        customer_id = self.ensure_customer_exists(enrollment.user)
-        
         # Calculate due date
         due_date = timezone.now().date() + timedelta(days=due_days)
-        
-        # Create payment in Asaas
-        asaas_payment = self.asaas.create_pix_payment(
-            customer_id=customer_id,
-            value=enrollment.final_amount,
+        return self._create_pix_payment_record(
+            enrollment=enrollment,
+            amount=enrollment.final_amount,
+            installment_number=1,
             due_date=due_date,
             description=f'Inscrição - {enrollment.product.name}',
             external_reference=str(enrollment.id)
         )
-        
-        # Get PIX QR code
-        pix_data = self.asaas.get_pix_qrcode(asaas_payment['id'])
-        
-        # Create local payment record
-        payment = Payment.objects.create(
-            enrollment=enrollment,
-            asaas_payment_id=asaas_payment['id'],
-            installment_number=1,
-            amount=enrollment.final_amount,
-            status='PENDING',
-            due_date=due_date,
-            payment_url=asaas_payment.get('invoiceUrl', ''),
-            pix_qr_code=pix_data.get('encodedImage', ''),
-            pix_copy_paste=pix_data.get('payload', ''),
-            raw_webhook_data={'created': asaas_payment}
-        )
-        
-        return payment
     
     @transaction.atomic
     def create_pix_installment_payments(
@@ -157,9 +191,6 @@ class PaymentService:
         Returns:
             List of Payment instances
         """
-        # Ensure customer exists
-        customer_id = self.ensure_customer_exists(enrollment.user)
-        
         # Calculate installment value
         installment_value = enrollment.final_amount / installments
         
@@ -167,33 +198,16 @@ class PaymentService:
         for i in range(1, installments + 1):
             # Due date: first in 3 days, others every 30 days
             due_date = timezone.now().date() + timedelta(days=3 + 30 * (i - 1))
-            
-            # Create payment in Asaas
-            asaas_payment = self.asaas.create_pix_payment(
-                customer_id=customer_id,
-                value=installment_value,
+            payment = self._create_pix_payment_record(
+                enrollment=enrollment,
+                amount=installment_value,
+                installment_number=i,
                 due_date=due_date,
                 description=f'Inscrição - {enrollment.product.name} - Parcela {i}/{installments}',
-                external_reference=f'{enrollment.id}-{i}'
+                external_reference=f'{enrollment.id}-{i}',
+                status='PENDING' if i == 1 else 'CREATED'
             )
-            
-            # Get PIX QR code
-            pix_data = self.asaas.get_pix_qrcode(asaas_payment['id'])
-            
-            # Create local payment record
-            payment = Payment.objects.create(
-                enrollment=enrollment,
-                asaas_payment_id=asaas_payment['id'],
-                installment_number=i,
-                amount=installment_value,
-                status='PENDING' if i == 1 else 'CREATED',
-                due_date=due_date,
-                payment_url=asaas_payment.get('invoiceUrl', ''),
-                pix_qr_code=pix_data.get('encodedImage', ''),
-                pix_copy_paste=pix_data.get('payload', ''),
-                raw_webhook_data={'created': asaas_payment}
-            )
-            
+
             payments.append(payment)
         
         return payments
@@ -280,6 +294,43 @@ class PaymentService:
             raw_webhook_data={'created': asaas_payment}
         )
         
+        return payment
+
+    @transaction.atomic
+    def recreate_pix_payment(self, payment: Payment, due_days: int = 3, due_date=None) -> Payment:
+        """
+        Recreate a PIX payment for an existing installment.
+
+        This is useful when an installment was cancelled but the customer still
+        needs to pay that same installment number again.
+        """
+        if payment.is_paid:
+            raise ValueError('Paid payments cannot be recreated')
+
+        enrollment = payment.enrollment
+        if due_date is None:
+            due_date = timezone.now().date() + timedelta(days=due_days)
+
+        asaas_payment, pix_data = self._create_pix_charge(
+            enrollment=enrollment,
+            amount=payment.amount,
+            due_date=due_date,
+            description=(
+                f'Inscrição - {enrollment.product.name} - '
+                f'Parcela {payment.installment_number}/{enrollment.installments}'
+            ),
+            external_reference=f'{enrollment.id}-{payment.installment_number}'
+        )
+
+        payment.asaas_payment_id = asaas_payment['id']
+        payment.status = 'PENDING'
+        payment.due_date = due_date
+        payment.paid_at = None
+        payment.payment_url = asaas_payment.get('invoiceUrl', '')
+        payment.pix_qr_code = pix_data.get('encodedImage', '')
+        payment.pix_copy_paste = pix_data.get('payload', '')
+        payment.raw_webhook_data = {'created': asaas_payment, 'reissued_from': payment.raw_webhook_data or {}}
+        payment.save()
         return payment
     
     def process_webhook(self, webhook_data: Dict) -> None:
